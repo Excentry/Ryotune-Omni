@@ -265,6 +265,10 @@ impl Player {
         self.mpv.get_property::<f64>("time-pos").ok().filter(|p| p.is_finite())
     }
 
+    pub fn cache_end(&self) -> Option<f64> {
+        self.mpv.get_property::<f64>("demuxer-cache-time").ok().filter(|p| p.is_finite())
+    }
+
     /// Absolute seek in seconds.
     pub fn seek(&self, position_secs: f64) -> Result<(), Error> {
         self.mpv.command("seek", &[&position_secs.to_string(), "absolute"])?;

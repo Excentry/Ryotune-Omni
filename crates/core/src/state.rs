@@ -3174,9 +3174,6 @@ impl AppState {
             return Ok(()); // guests can't scrub — the host controls the timeline
         }
         let position = position.max(0.0);
-        // A Spotify track: mpv can't seek a FIFO, so tell librespot to seek, record the base, and
-        // reload mpv on the same FIFO so it reads the post-seek PCM from 0 (base + mpv time-pos =
-        // the true position). Anything else is a plain mpv seek.
         let spotify_title = {
             let q = self.queue.lock().await;
             q.items
@@ -3185,23 +3182,29 @@ impl AppState {
                 .map(|i| media_title(&i.title, &i.artists))
         };
         if let Some(title) = spotify_title {
-            let controls = self.spotify_stream.lock().as_ref().map(|s| s.controls.clone());
-            let Some(controls) = controls else {
-                return Ok(()); // no live stream to seek (shouldn't happen while one plays)
-            };
-            controls.seek(Duration::from_secs_f64(position));
-            self.set_spotify_base(position);
-            self.player
-                .load(
-                    controls.fifo_path().to_string_lossy().as_ref(),
-                    &Default::default(),
-                    None,
-                    &title,
-                    &spotify_mpv_options(),
-                )
-                .map_err(|e| e.to_string())?;
-            let _ = self.player.play();
-            controls.play();
+            if let Some(target) =
+                seek_inside_cache(position, self.spotify_base(), self.player.cache_end())
+            {
+                self.player.seek(target).map_err(|e| e.to_string())?;
+            } else {
+                let controls = self.spotify_stream.lock().as_ref().map(|s| s.controls.clone());
+                let Some(controls) = controls else {
+                    return Ok(()); // no live stream to seek (shouldn't happen while one plays)
+                };
+                controls.seek(Duration::from_secs_f64(position));
+                self.set_spotify_base(position);
+                self.player
+                    .load(
+                        controls.fifo_path().to_string_lossy().as_ref(),
+                        &Default::default(),
+                        None,
+                        &title,
+                        &spotify_mpv_options(),
+                    )
+                    .map_err(|e| e.to_string())?;
+                let _ = self.player.play();
+                controls.play();
+            }
         } else {
             self.player.seek(position).map_err(|e| e.to_string())?;
         }
@@ -4092,6 +4095,14 @@ fn spotify_mpv_options() -> Vec<String> {
 
 /// True track position from mpv's per-load `time-pos` and the Spotify seek base. mpv restarts its
 /// clock at 0 on every FIFO (re)load, so a seek stores the target as the base and playback reports
+const CACHE_SEEK_MARGIN: f64 = 0.5;
+
+fn seek_inside_cache(position: f64, seek_base: f64, cache_end: Option<f64>) -> Option<f64> {
+    let end = cache_end?;
+    let target = position - seek_base;
+    (target >= 0.0 && target < end - CACHE_SEEK_MARGIN).then_some(target)
+}
+
 /// `base + time-pos`. The base is 0 for every non-Spotify track and for an un-seeked Spotify one,
 /// making this transparent there.
 fn position_with_base(mpv_time_pos: f64, seek_base: f64) -> f64 {
@@ -4315,8 +4326,9 @@ mod tests {
         append_page, backfill_metadata, drop_duplicates, enqueue_at, format_duration,
         guest_insert_index, is_mix, loudness_gain, merge_radio, next_index, parse_duration_ms,
         persist_fingerprint, position_with_base, queue_fingerprint, radio_seed_for, read_personal,
-        shuffle_new_queue, shuffle_upcoming, splice_radio_into, spotify_mpv_options, unshuffled,
-        upcoming_queued, validate_personal_blob, QueueState, RepeatMode, PERSONAL_JSON_KEY,
+        seek_inside_cache, shuffle_new_queue, shuffle_upcoming, splice_radio_into,
+        spotify_mpv_options, unshuffled, upcoming_queued, validate_personal_blob, QueueState,
+        RepeatMode, PERSONAL_JSON_KEY,
     };
     use crate::db::Db;
 
@@ -5019,6 +5031,16 @@ mod tests {
         assert_eq!(position_with_base(12.5, 0.0), 12.5);
         assert_eq!(position_with_base(0.0, 60.0), 60.0);
         assert_eq!(position_with_base(0.5, 60.0), 60.5);
+    }
+
+    #[test]
+    fn a_target_inside_the_drained_cache_seeks_mpv_not_the_stream() {
+        assert_eq!(seek_inside_cache(20.0, 0.0, Some(156.0)), Some(20.0));
+        assert_eq!(seek_inside_cache(100.0, 60.0, Some(96.0)), Some(40.0));
+        assert_eq!(seek_inside_cache(20.0, 0.0, Some(3.0)), None);
+        assert_eq!(seek_inside_cache(30.0, 60.0, Some(96.0)), None);
+        assert_eq!(seek_inside_cache(155.9, 0.0, Some(156.0)), None);
+        assert_eq!(seek_inside_cache(20.0, 0.0, None), None);
     }
 
     // Real Spotify playback needs a Premium session and the librespot pipe backend, which can't run
