@@ -2123,12 +2123,10 @@ impl AppState {
             let q = self.queue.lock().await;
             (q.duration, q.items.get(q.current).cloned())
         };
-        // mpv's raw `time-pos` is relative to the last FIFO (re)load for a Spotify track; add the
-        // seek base (0 for everything else) so a window opening mid-playback sees the true position.
         let position = self
             .player
             .position()
-            .map(|p| position_with_base(p, self.spotify_base()))
+            .map(|p| self.track_position(p))
             .unwrap_or_else(|| self.current_position());
         self.note_position_sample(position);
         serde_json::json!({
@@ -2457,6 +2455,10 @@ impl AppState {
         })
     }
 
+    pub fn track_position(&self, mpv_time_pos: f64) -> f64 {
+        position_with_base(mpv_time_pos, self.spotify_base())
+    }
+
     /// Record the newest mpv position with no allocation, lock or I/O. The player can emit
     /// time-pos much faster than the UI needs; the event pump calls this for every raw sample and
     /// runs [`Self::on_position`] only at its throttled cadence. Pause/seek flushes therefore still
@@ -2472,11 +2474,6 @@ impl AppState {
     /// watch-history ping, latched to happen exactly once per play. The ping is additionally
     /// gated on the `enable_history` setting + being logged in. Best-effort (errors logged).
     pub async fn on_position(&self, pos: f64) {
-        // mpv restarts `time-pos` at 0 whenever a Spotify FIFO is (re)loaded; the base carries the
-        // true track position across a seek. It is 0 for every non-Spotify track, so this is a
-        // no-op there — everything downstream (scrubber, resume, history threshold) sees the real
-        // position.
-        let pos = position_with_base(pos, self.spotify_base());
         self.record_position(pos);
         let crossed = {
             let mut q = self.queue.lock().await;

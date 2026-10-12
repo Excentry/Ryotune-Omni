@@ -297,6 +297,7 @@ fn spawn_event_pump(
             let ui = sink.subscriber_count() > 0;
             match ev {
                 PlayerEvent::Position(p) => {
+                    let p = state.track_position(p);
                     state.note_position_sample(p);
                     let cadence = if ui {
                         if state.low_resource_mode() {
