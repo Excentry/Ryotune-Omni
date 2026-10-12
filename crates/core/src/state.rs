@@ -2607,10 +2607,24 @@ impl AppState {
         video_id: String,
         mut handle: StreamHandle,
     ) {
+        let mut closed = false;
         while let Some(event) = handle.next_event().await {
-            if event == StreamEvent::Unavailable {
-                self.skip_unavailable_spotify(&video_id).await;
-                return;
+            match event {
+                StreamEvent::Unavailable => {
+                    self.skip_unavailable_spotify(&video_id).await;
+                    return;
+                }
+                StreamEvent::EndOfTrack if !closed => {
+                    let current = {
+                        let q = self.queue.lock().await;
+                        q.items.get(q.current).map(|i| i.video_id == video_id).unwrap_or(false)
+                    };
+                    if current {
+                        closed = true;
+                        handle.close_writer();
+                    }
+                }
+                _ => (),
             }
         }
     }

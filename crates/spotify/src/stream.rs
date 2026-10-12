@@ -119,6 +119,10 @@ impl StreamHandle {
         self.player.pause();
     }
 
+    pub fn close_writer(&self) {
+        self.player.stop();
+    }
+
     /// The next playback event, or `None` once the player has shut down. librespot events that do not
     /// map onto [`StreamEvent`] (e.g. `Loading`) are skipped.
     pub async fn next_event(&mut self) -> Option<StreamEvent> {
