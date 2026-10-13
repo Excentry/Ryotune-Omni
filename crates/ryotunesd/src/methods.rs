@@ -1178,7 +1178,7 @@ async fn home_merged(st: &Arc<AppState>) -> Result<Value, ErrorBody> {
     // Spotify: whenever a Premium session exists — the merged home aggregates every
     // signed-in provider, regardless of which catalogue the selector points at for
     // Library/Search. A session that died since startup recovers once from the cache.
-    if let Some(client) = st.spotify.client_or_recover().await {
+    if let Some(client) = st.spotify.client().await {
         if let Ok(feed) = client.home().await {
             extra.extend(spotify_bridge::home_page(&feed).sections);
         }

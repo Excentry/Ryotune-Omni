@@ -922,10 +922,7 @@ impl AppState {
         // them. Opening the stream starts librespot decoding into the FIFO immediately; mpv is
         // pointed at that FIFO with the rawaudio demuxer options.
         if let Some(tid) = crate::spotify::spotify_track_id(video_id) {
-            // `client_or_recover` gives a session that died since startup (or a restore that lost
-            // the race with the first client connecting) exactly one chance to come back from the
-            // saved credentials before this track is honestly reported as needing sign-in.
-            let Some(client) = self.spotify.client_or_recover().await else {
+            let Some(client) = self.spotify.client().await else {
                 return Err(ResolveError::SignInRequired(
                     "Sign in to Spotify to play this".to_owned(),
                 ));
