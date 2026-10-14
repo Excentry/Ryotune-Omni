@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.1.9 - 2026-10-14
+
 - Every song, album, playlist and artist now shows where it comes from: cards carry a small YouTube Music, Spotify or SoundCloud badge in that service's colour on the cover, and track rows show the same glyph beside the title. Ryotunes' own collections (On Repeat, local playlists, files on disk, radio) carry none.
 
 ## v1.1.8 - 2026-10-14
