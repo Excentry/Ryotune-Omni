@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.2.0 - 2026-10-14
+
 - Fixed Settings ▸ Software updates wrongly saying "This is not a pacman-managed Ryotunes installation" after a system upgrade replaced Ryotunes while it was running. It now says the new version is already installed and offers "Restart to finish update", which restarts straight into it with nothing to download.
 
 ## v1.1.9 - 2026-10-14
