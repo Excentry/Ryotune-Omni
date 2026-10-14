@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.1.8 - 2026-10-14
+
 - Fixed Spotify playback stopping at the end of every track instead of moving on, and seeking doing nothing: the track now ends cleanly into the next one, and seeking jumps within the already-buffered track.
 - Spotify tracks now show their length in the desktop media widget.
 - Saved Spotify songs, albums and artists now come back newest first, and Spotify playlists and Liked Songs have the same sort menu as the other providers.
