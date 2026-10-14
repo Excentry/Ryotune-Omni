@@ -15,8 +15,8 @@ use std::time::Duration;
 
 use innertube::models::metadata::ArtistRun;
 use innertube::{
-    AlbumPage, ArtistCarousel, ArtistPage, BrowseItem, HomePage, PlaylistPage, Rating,
-    SearchResults, Section, SongItem,
+    AlbumPage, ArtistCarousel, ArtistPage, BrowseItem, HomePage, PlaylistPage, PlaylistSort,
+    Rating, SearchResults, Section, SongItem, SortMenu,
 };
 use ryotunes_spotify::{
     Album, AlbumDetail, Artist, ArtistRef, GenreItem, HomeFeed, Lyrics, LyricsLine, Playlist,
@@ -216,9 +216,31 @@ pub fn artist_page(id: &str, artist: &Artist) -> ArtistPage {
     }
 }
 
+fn sorted(tracks: &[Track], sort: PlaylistSort, desc: bool) -> Vec<&Track> {
+    let mut out: Vec<&Track> = tracks.iter().collect();
+    match sort {
+        PlaylistSort::Default => return out,
+        PlaylistSort::Newest => out.sort_by(|a, b| b.added_at.cmp(&a.added_at)),
+        PlaylistSort::Oldest => out.sort_by(|a, b| a.added_at.cmp(&b.added_at)),
+        PlaylistSort::Title => out.sort_by_cached_key(|t| t.name.to_lowercase()),
+        PlaylistSort::Artist => out.sort_by_cached_key(|t| t.artists.to_lowercase()),
+        PlaylistSort::Album => out.sort_by_cached_key(|t| t.album.to_lowercase()),
+        PlaylistSort::Top => out.sort_by(|a, b| b.popularity.cmp(&a.popularity)),
+    }
+    if desc {
+        out.reverse();
+    }
+    out
+}
+
 /// A Spotify [`PlaylistDetail`] as the playlist page.
-pub fn playlist_page(detail: &PlaylistDetail) -> PlaylistPage {
+pub fn playlist_page(
+    detail: &PlaylistDetail,
+    sort: Option<PlaylistSort>,
+    desc: bool,
+) -> PlaylistPage {
     let playlist = &detail.playlist;
+    let key = sort.unwrap_or(PlaylistSort::Default);
     PlaylistPage {
         title: Some(playlist.name.clone()),
         subtitle: (!playlist.owner.is_empty()).then(|| playlist.owner.clone()),
@@ -226,17 +248,18 @@ pub fn playlist_page(detail: &PlaylistDetail) -> PlaylistPage {
         description: None,
         privacy: Some(if playlist.public { "PUBLIC" } else { "PRIVATE" }.to_owned()),
         cover: None,
-        items: detail.tracks.iter().map(track_to_song).collect(),
+        items: sorted(&detail.tracks, key, desc).into_iter().map(track_to_song).collect(),
         continuation: None,
         owned: playlist.owned,
         collaborative: playlist.collaborative,
-        sort_menu: None,
+        sort_menu: Some(SortMenu { selected: Some(key), editable: false }),
     }
 }
 
 /// The liked-songs page: the paged saved tracks under the "Liked Songs" title.
-pub fn liked_page(tracks: &[Track]) -> PlaylistPage {
-    let items: Vec<SongItem> = tracks.iter().map(track_to_song).collect();
+pub fn liked_page(tracks: &[Track], sort: Option<PlaylistSort>, desc: bool) -> PlaylistPage {
+    let key = sort.unwrap_or(PlaylistSort::Newest);
+    let items: Vec<SongItem> = sorted(tracks, key, desc).into_iter().map(track_to_song).collect();
     PlaylistPage {
         title: Some("Liked Songs".to_owned()),
         subtitle: Some(song_count(items.len())),
@@ -248,7 +271,7 @@ pub fn liked_page(tracks: &[Track]) -> PlaylistPage {
         continuation: None,
         owned: true,
         collaborative: false,
-        sort_menu: None,
+        sort_menu: Some(SortMenu { selected: Some(key), editable: false }),
     }
 }
 
@@ -650,17 +673,86 @@ mod tests {
     #[test]
     fn playlist_and_liked_pages() {
         let detail = PlaylistDetail { playlist: playlist(), tracks: vec![track(), track()] };
-        let page = playlist_page(&detail);
+        let page = playlist_page(&detail, None, false);
         assert_eq!(page.title.as_deref(), Some("Today's Top Hits"));
         assert_eq!(page.subtitle.as_deref(), Some("Spotify"));
         assert_eq!(page.privacy.as_deref(), Some("PUBLIC"));
         assert!(!page.owned);
         assert_eq!(page.items.len(), 2);
 
-        let liked = liked_page(&[track()]);
+        let liked = liked_page(&[track()], None, false);
         assert_eq!(liked.title.as_deref(), Some("Liked Songs"));
         assert_eq!(liked.subtitle.as_deref(), Some("1 song"));
         assert!(liked.owned);
+    }
+
+    fn saved(name: &str, artists: &str, album: &str, added_at: i64) -> Track {
+        Track {
+            name: name.to_owned(),
+            artists: artists.to_owned(),
+            album: album.to_owned(),
+            added_at: Some(added_at),
+            ..track()
+        }
+    }
+
+    fn three() -> Vec<Track> {
+        vec![
+            saved("Cats", "Ann", "Zoo", 200),
+            saved("Bats", "Zoe", "Air", 300),
+            saved("Ants", "Moe", "Moon", 100),
+        ]
+    }
+
+    fn titles(page: &PlaylistPage) -> Vec<&str> {
+        page.items.iter().map(|i| i.title.as_str()).collect()
+    }
+
+    #[test]
+    fn every_sort_key_reads_its_own_field() {
+        let tracks = three();
+        let of = |key| titles(&liked_page(&tracks, Some(key), false)).join(",");
+
+        assert_eq!(of(PlaylistSort::Default), "Cats,Bats,Ants");
+        assert_eq!(of(PlaylistSort::Newest), "Bats,Cats,Ants");
+        assert_eq!(of(PlaylistSort::Oldest), "Ants,Cats,Bats");
+        assert_eq!(of(PlaylistSort::Title), "Ants,Bats,Cats");
+        assert_eq!(of(PlaylistSort::Artist), "Cats,Ants,Bats");
+        assert_eq!(of(PlaylistSort::Album), "Bats,Ants,Cats");
+    }
+
+    #[test]
+    fn an_unsorted_liked_page_really_is_newest_first() {
+        let page = liked_page(&three(), None, false);
+
+        assert_eq!(titles(&page), ["Bats", "Cats", "Ants"]);
+        assert_eq!(page.sort_menu.unwrap().selected, Some(PlaylistSort::Newest));
+    }
+
+    #[test]
+    fn an_unsorted_playlist_keeps_the_owners_order() {
+        let detail = PlaylistDetail { playlist: playlist(), tracks: three() };
+        let page = playlist_page(&detail, None, false);
+
+        assert_eq!(titles(&page), ["Cats", "Bats", "Ants"]);
+        assert_eq!(page.sort_menu.unwrap().selected, Some(PlaylistSort::Default));
+    }
+
+    #[test]
+    fn descending_turns_newest_into_oldest() {
+        let tracks = three();
+
+        assert_eq!(
+            titles(&liked_page(&tracks, Some(PlaylistSort::Newest), true)),
+            ["Ants", "Cats", "Bats"]
+        );
+    }
+
+    #[test]
+    fn a_spotify_list_never_offers_to_write_its_order_back() {
+        assert!(!liked_page(&three(), None, false).sort_menu.unwrap().editable);
+        let detail = PlaylistDetail { playlist: playlist(), tracks: three() };
+        assert!(!playlist_page(&detail, None, false).sort_menu.unwrap().editable);
     }
 
     #[test]

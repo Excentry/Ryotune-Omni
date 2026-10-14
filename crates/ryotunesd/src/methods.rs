@@ -1093,7 +1093,12 @@ async fn spotify_library_artists(st: &Arc<AppState>) -> Result<Value, ErrorBody>
 }
 
 /// `spotify:playlist:liked` pages every saved track; any other id is a real Spotify playlist.
-async fn spotify_playlist(st: &Arc<AppState>, pid: &str) -> Result<Value, ErrorBody> {
+async fn spotify_playlist(
+    st: &Arc<AppState>,
+    pid: &str,
+    sort: Option<PlaylistSort>,
+    desc: bool,
+) -> Result<Value, ErrorBody> {
     let client = st.spotify.client().await.ok_or_else(spotify_signed_out)?;
     if pid == "liked" {
         let mut tracks = Vec::new();
@@ -1107,10 +1112,10 @@ async fn spotify_playlist(st: &Arc<AppState>, pid: &str) -> Result<Value, ErrorB
             }
             page += 1;
         }
-        ok(spotify_bridge::liked_page(&tracks))
+        ok(spotify_bridge::liked_page(&tracks, sort, desc))
     } else {
         let detail = client.playlist(pid).await.map_err(spotify_err)?;
-        ok(spotify_bridge::playlist_page(&detail))
+        ok(spotify_bridge::playlist_page(&detail, sort, desc))
     }
 }
 
@@ -1397,8 +1402,10 @@ async fn get_library(st: &Arc<AppState>) -> Result<Value, ErrorBody> {
 
 async fn get_playlist(st: &Arc<AppState>, params: &Value) -> Result<Value, ErrorBody> {
     let id = arg::<String>(params, "id")?;
+    let sort = arg::<Option<PlaylistSort>>(params, "sort")?;
+    let desc = arg::<Option<bool>>(params, "desc")?;
     if let Some(pid) = id.strip_prefix("spotify:playlist:") {
-        return spotify_playlist(st, pid).await;
+        return spotify_playlist(st, pid, sort, desc.unwrap_or(false)).await;
     }
     if let Some(permalink) = sc_system_id(&id) {
         return soundcloud_system_playlist(st, permalink).await;
@@ -1406,8 +1413,6 @@ async fn get_playlist(st: &Arc<AppState>, params: &Value) -> Result<Value, Error
     if let Some(pid) = sc_playlist_id(&id) {
         return soundcloud_playlist(st, pid).await;
     }
-    let sort = arg::<Option<PlaylistSort>>(params, "sort")?;
-    let desc = arg::<Option<bool>>(params, "desc")?;
     if is_local_playlist_id(&id) {
         // Liked Songs exists from the first read, so the library's Songs tab renders empty
         // rather than erroring before the first heart.
