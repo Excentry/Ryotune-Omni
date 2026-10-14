@@ -1,6 +1,6 @@
 //! Explicit, package-managed updates shared by both desktop hosts. GitHub is the release
 //! authority; the renderer can select a version, never a URL, command or destination.
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -24,6 +24,9 @@ pub struct UpdateInfo {
     pub notes: String,
     pub can_install: bool,
     pub unsupported_reason: Option<String>,
+    /// The latest release is already installed on disk (pacman upgraded the files under this
+    /// running daemon); only a restart is left to do.
+    pub restart_pending: bool,
 }
 
 #[derive(Serialize)]
@@ -78,6 +81,7 @@ fn release_info(release: Option<Release>, current: &str, reason: Option<String>)
         notes: String::new(),
         can_install: false,
         unsupported_reason: reason,
+        restart_pending: false,
     };
     let Some(release) = release else { return info };
     let Some(latest) = release.tag_name.strip_prefix('v') else { return info };
@@ -128,7 +132,7 @@ async fn bounded_body(mut response: reqwest::Response, limit: usize) -> Result<V
 
 async fn installation_reason() -> Option<String> {
     if !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        return Some("Self update supports the x86_64 Arch/Ryoku package. Download a release for your platform instead.".into());
+        return Some("Self update supports the x86_64 Arch Linux package. Download a release for your platform instead.".into());
     }
     if !Path::new("/usr/bin/pacman").is_file() || !Path::new("/usr/bin/pkexec").is_file() {
         return Some(
@@ -137,14 +141,47 @@ async fn installation_reason() -> Option<String> {
         );
     }
     let exe = match std::env::current_exe() {
-        Ok(exe) => exe,
+        Ok(exe) => on_disk(exe),
         Err(e) => return Some(format!("Cannot determine the running installation: {e}")),
     };
     let owner = Command::new("/usr/bin/pacman").args(["-Qoq"]).arg(exe).kill_on_drop(true).output();
     match tokio::time::timeout(Duration::from_secs(10), owner).await {
         Ok(Ok(output)) if output.status.success() && output.stdout == b"ryotunes\n" => None,
-        _ => Some("This is not a pacman-managed Ryotunes installation. Install the release package first; development builds are never overwritten.".into()),
+        _ => Some("This copy of Ryotunes was not installed from its pacman package, so it cannot update itself. Install the package from the release page; development builds are never overwritten.".into()),
     }
+}
+
+/// The running binary's path on disk. Once pacman replaces the file under a running daemon, the
+/// kernel reports `/usr/bin/ryotunesd (deleted)`; the package still owns the original path.
+fn on_disk(exe: PathBuf) -> PathBuf {
+    match exe.to_str().and_then(|path| path.strip_suffix(" (deleted)")) {
+        Some(path) => PathBuf::from(path),
+        None => exe,
+    }
+}
+
+/// The installed package's version, which runs ahead of this daemon once pacman (a system
+/// upgrade, or an update installed from another window) has replaced the files underneath it.
+async fn installed_package_version() -> Result<Option<String>, String> {
+    let output = tokio::time::timeout(
+        Duration::from_secs(10),
+        Command::new("/usr/bin/pacman").args(["-Q", "ryotunes"]).kill_on_drop(true).output(),
+    )
+    .await
+    .map_err(|_| "Timed out reading the installed package.")?
+    .map_err(|e| format!("Could not query the installed package: {e}"))?;
+    if !output.status.success() {
+        return Err("Could not query the installed Ryotunes package.".into());
+    }
+    Ok(package_version(&String::from_utf8_lossy(&output.stdout)))
+}
+
+/// `ryotunes 1:1.1.9-1` → `1.1.9`.
+fn package_version(query: &str) -> Option<String> {
+    query
+        .trim()
+        .strip_prefix("ryotunes 1:")
+        .and_then(|value| value.rsplit_once('-').map(|(version, _)| version.to_owned()))
 }
 
 pub async fn check_for_updates() -> Result<UpdateInfo, String> {
@@ -158,7 +195,12 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
                 .map_err(|e| format!("Invalid GitHub release metadata: {e}"))?,
         )
     };
-    Ok(release_info(release, env!("CARGO_PKG_VERSION"), installation_reason().await))
+    let mut info = release_info(release, env!("CARGO_PKG_VERSION"), installation_reason().await);
+    if info.available && info.can_install {
+        info.restart_pending = installed_package_version().await.ok().flatten().as_deref()
+            == info.latest_version.as_deref();
+    }
+    Ok(info)
 }
 
 fn checksum(bytes: &[u8], name: &str) -> Result<String, String> {
@@ -229,24 +271,9 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
             .unsupported_reason
             .unwrap_or_else(|| "Self update is not available for this installation.".into()));
     }
-    // Ryoku may already have upgraded the files while this older daemon was still running.
-    let installed = tokio::time::timeout(
-        Duration::from_secs(10),
-        Command::new("/usr/bin/pacman").args(["-Q", "ryotunes"]).kill_on_drop(true).output(),
-    )
-    .await
-    .map_err(|_| "Timed out reading the installed package.")?
-    .map_err(|e| format!("Could not query the installed package: {e}"))?;
-    if !installed.status.success() {
-        return Err("Could not query the installed Ryotunes package.".into());
-    }
-    let installed_text = String::from_utf8_lossy(&installed.stdout);
-    if let Some(installed_version) = installed_text
-        .trim()
-        .strip_prefix("ryotunes 1:")
-        .and_then(|value| value.rsplit_once('-').map(|(v, _)| v))
-    {
-        if version(installed_version) > version(&requested) {
+    // A system upgrade may already have replaced the files while this older daemon kept running.
+    if let Some(installed_version) = installed_package_version().await? {
+        if version(&installed_version) > version(&requested) {
             return Err(
                 "A newer package is already installed. Quit Ryotunes and open it again.".into()
             );
@@ -389,5 +416,15 @@ mod tests {
         assert!(checksum(format!("{hash}  other\n").as_bytes(), "package").is_err());
         assert!(checksum(format!("{hash}  package\n{hash} other").as_bytes(), "package").is_err());
         assert!(checksum(b"not-a-hash package", "package").is_err());
+    }
+
+    #[test]
+    fn a_replaced_binary_still_resolves_to_its_package_path() {
+        let replaced = PathBuf::from("/usr/bin/ryotunesd (deleted)");
+        assert_eq!(on_disk(replaced), PathBuf::from("/usr/bin/ryotunesd"));
+        let intact = PathBuf::from("/usr/bin/ryotunesd");
+        assert_eq!(on_disk(intact.clone()), intact);
+        assert_eq!(package_version("ryotunes 1:1.1.9-1\n").as_deref(), Some("1.1.9"));
+        assert_eq!(package_version("other 1:1.1.9-1"), None);
     }
 }

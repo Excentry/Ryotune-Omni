@@ -205,6 +205,13 @@ Item {
         var info = page.updateInfo;
         if (!info || !info.latestVersion || !info.available || !info.canInstall) return;
         var version = info.latestVersion;
+        // Already on disk (a system upgrade got there first): nothing to download, just restart.
+        if (info.restartPending) {
+            page.installedVersion = version;
+            page.updateStatus = "installed";
+            page.restartIntoUpdate();
+            return;
+        }
         page.updateStatus = "installing";
         page.updateError = "";
         Daemon.call("install_update", { version: version })
@@ -241,6 +248,8 @@ Item {
         if (!info) return "";
         if (info.latestVersion === null || info.latestVersion === undefined) return "No release has been published yet.";
         if (info.available) {
+            if (info.restartPending)
+                return "Ryotunes " + info.latestVersion + " is already installed. Restart Ryotunes to start using it.";
             var msg = "Version " + info.latestVersion + " is available.";
             if (!info.canInstall && info.unsupportedReason) msg += " " + info.unsupportedReason;
             return msg;
@@ -1413,7 +1422,9 @@ Item {
                         Btn {
                             visible: !!(page.updateInfo && page.updateInfo.available && page.updateInfo.latestVersion && page.updateInfo.canInstall) && page.updateStatus !== "installed"
                             primary: true
-                            text: page.updateStatus === "installing" ? "Installing…" : ("Update to " + (page.updateInfo ? page.updateInfo.latestVersion : ""))
+                            text: page.updateStatus === "installing" ? "Installing…"
+                                : (page.updateInfo && page.updateInfo.restartPending) ? "Restart to finish update"
+                                : ("Update to " + (page.updateInfo ? page.updateInfo.latestVersion : ""))
                             icon: "download"
                             enabled: page.updateStatus !== "installing" && page.updateStatus !== "checking"
                             onClicked: page.installUpdate()
