@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.1.7 - 2026-10-14
+
 - Fixed music stopping and the app closing after a few minutes of playback: the daemon's hidden YouTube helper views loaded the desktop accessibility bridge, and when the session's accessibility bus went stale the bridge crashed the whole daemon the next time a helper view was built. The daemon no longer loads the bridge at all, since those views are never shown.
 
 ## v1.1.6 - 2026-09-25
