@@ -18,17 +18,21 @@ impl Default for Locale {
 }
 
 impl Locale {
-    /// Derive a `Locale` from the process environment (`LC_ALL`/`LANG`), so the
-    /// YouTube API answers in the user's language instead of always US/en.
-    /// Falls back to [`Locale::default`] when nothing parseable is set.
+    /// Derive a `Locale` from the process environment (`LC_ALL`, `LC_MESSAGES`, then `LANG`, the
+    /// first non-empty one wins as in POSIX), so the YouTube API answers in the user's language
+    /// instead of always US/en. Falls back to [`Locale::default`] when nothing parseable is set.
     pub fn from_env() -> Self {
-        let raw = std::env::var("LC_ALL").or_else(|_| std::env::var("LANG")).unwrap_or_default();
+        let raw = ["LC_ALL", "LC_MESSAGES", "LANG"]
+            .iter()
+            .filter_map(|k| std::env::var(k).ok())
+            .find(|v| !v.is_empty())
+            .unwrap_or_default();
         Self::from_lang(&raw)
     }
 
     fn from_lang(raw: &str) -> Self {
-        // "fr_FR.UTF-8" -> ("fr", "FR"); "", "C" or "POSIX" -> default.
-        let base = raw.split('.').next().unwrap_or("");
+        // "fr_FR.UTF-8" / "de_DE@euro" -> ("fr", "FR") / ("de", "DE"); "", "C" or "POSIX" -> default.
+        let base = raw.split(['.', '@']).next().unwrap_or("");
         let mut parts = base.split('_');
         let lang = parts.next().unwrap_or("").to_ascii_lowercase();
         if lang.is_empty() || lang == "c" || lang == "posix" {
@@ -151,6 +155,32 @@ impl YouTubeClient {
                     None
                 },
             },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Locale;
+
+    fn tags(raw: &str) -> (String, String) {
+        let l = Locale::from_lang(raw);
+        (l.hl, l.gl)
+    }
+
+    #[test]
+    fn system_locales_map_onto_youtube_tags() {
+        assert_eq!(tags("fr_FR.UTF-8"), ("fr".into(), "FR".into()));
+        assert_eq!(tags("de_DE@euro"), ("de".into(), "DE".into()));
+        assert_eq!(tags("pt_BR.UTF-8"), ("pt-BR".into(), "BR".into()));
+        assert_eq!(tags("es_MX.UTF-8"), ("es-419".into(), "MX".into()));
+        assert_eq!(tags("ja"), ("ja".into(), "US".into()));
+    }
+
+    #[test]
+    fn unset_or_neutral_locales_stay_us_english() {
+        for raw in ["", "C", "C.UTF-8", "POSIX"] {
+            assert_eq!(tags(raw), ("en".into(), "US".into()), "{raw:?}");
         }
     }
 }
