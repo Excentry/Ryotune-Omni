@@ -93,6 +93,10 @@ pub struct SpotifyState {
     provider: SpotifyProvider,
     client: RwLock<Option<Arc<Client>>>,
     last_recovery: parking_lot::Mutex<Option<std::time::Instant>>,
+    /// Set when the stored credentials were refused for a reason no retry fixes (no Premium,
+    /// out of region, revoked). Recovery then stays off until a sign-in or sign-out, instead of
+    /// reconnecting librespot once per cooldown for an account that can never play.
+    refused: std::sync::atomic::AtomicBool,
     /// Serialises session restores so an on-demand recovery never runs a second librespot
     /// connect against the same cached credentials while the startup restore is mid-flight.
     recover_lock: tokio::sync::Mutex<()>,
@@ -105,6 +109,7 @@ impl SpotifyState {
             provider: SpotifyProvider::new(data_dir),
             client: RwLock::new(None),
             last_recovery: parking_lot::Mutex::new(None),
+            refused: std::sync::atomic::AtomicBool::new(false),
             recover_lock: tokio::sync::Mutex::new(()),
             selected: parking_lot::RwLock::new(selected),
         }
@@ -146,7 +151,10 @@ impl SpotifyState {
         if let Some(client) = self.live_client().await {
             return Some(client);
         }
-        if !self.provider.stored() || !self.may_recover() {
+        if !self.provider.stored()
+            || self.refused.load(std::sync::atomic::Ordering::Relaxed)
+            || !self.may_recover()
+        {
             return None;
         }
         match self.restore().await {
@@ -207,7 +215,12 @@ impl SpotifyState {
         if self.live_client().await.is_some() {
             return Ok(true);
         }
-        match self.provider.restore().await? {
+        let restored = self.provider.restore().await.inspect_err(|e| {
+            if retry_cannot_fix(e) {
+                self.refused.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+        })?;
+        match restored {
             Some(client) => {
                 *self.client.write().await = Some(Arc::new(client));
                 Ok(true)
@@ -225,6 +238,7 @@ impl SpotifyState {
         let client = self.provider.sign_in(on_url).await?;
         *self.client.write().await = Some(Arc::new(client));
         *self.last_recovery.lock() = None;
+        self.refused.store(false, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
@@ -233,7 +247,19 @@ impl SpotifyState {
         self.provider.sign_out();
         *self.client.write().await = None;
         *self.last_recovery.lock() = None;
+        self.refused.store(false, std::sync::atomic::Ordering::Relaxed);
     }
+}
+
+/// Whether a failed restore is about the account itself rather than the connection.
+fn retry_cannot_fix(e: &anyhow::Error) -> bool {
+    use ryotunes_spotify::{SignInFailure, SignInProblem};
+    matches!(
+        e.downcast_ref::<SignInFailure>(),
+        Some(SignInFailure(
+            SignInProblem::Premium | SignInProblem::Region | SignInProblem::Credentials
+        ))
+    )
 }
 
 #[cfg(test)]
@@ -254,5 +280,18 @@ mod tests {
 
         *state.last_recovery.lock() = Some(std::time::Instant::now() - RECOVERY_COOLDOWN);
         assert!(state.may_recover());
+    }
+
+    #[test]
+    fn only_account_refusals_stop_recovery() {
+        use ryotunes_spotify::{SignInFailure, SignInProblem};
+        let refused = |p| retry_cannot_fix(&anyhow::Error::new(SignInFailure(p)));
+
+        assert!(refused(SignInProblem::Premium));
+        assert!(refused(SignInProblem::Region));
+        assert!(refused(SignInProblem::Credentials));
+        assert!(!refused(SignInProblem::Network));
+        assert!(!refused(SignInProblem::Refused));
+        assert!(!retry_cannot_fix(&anyhow::anyhow!("Connection to server closed")));
     }
 }
