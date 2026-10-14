@@ -85,14 +85,14 @@ pub fn sc_system_id(id: &str) -> Option<&str> {
     id.strip_prefix(SC_SYSTEM_PREFIX).filter(|s| !s.is_empty())
 }
 
+const RECOVERY_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(30);
+
 /// Owns the Spotify sign-in, the current client and the catalogue selector. Construct once with the
 /// daemon's data directory; `spotify` credentials land under `<data_dir>/spotify`.
 pub struct SpotifyState {
     provider: SpotifyProvider,
     client: RwLock<Option<Arc<Client>>>,
-    /// The one on-demand session recovery this process is allowed (see `client_or_recover`).
-    /// Reset by a fresh sign-in or sign-out, which start a new credential lifetime.
-    recovery_used: std::sync::atomic::AtomicBool,
+    last_recovery: parking_lot::Mutex<Option<std::time::Instant>>,
     /// Serialises session restores so an on-demand recovery never runs a second librespot
     /// connect against the same cached credentials while the startup restore is mid-flight.
     recover_lock: tokio::sync::Mutex<()>,
@@ -104,7 +104,7 @@ impl SpotifyState {
         Self {
             provider: SpotifyProvider::new(data_dir),
             client: RwLock::new(None),
-            recovery_used: std::sync::atomic::AtomicBool::new(false),
+            last_recovery: parking_lot::Mutex::new(None),
             recover_lock: tokio::sync::Mutex::new(()),
             selected: parking_lot::RwLock::new(selected),
         }
@@ -136,17 +136,39 @@ impl SpotifyState {
         self.provider.stored()
     }
 
-    /// Whether a usable client exists. A session librespot invalidated (network drop, Spotify
-    /// killed it server-side) is *not* usable: it is dropped here so a later `restore`/
-    /// `client_or_recover` sees the truth and announces the sign-out to the daemon's event sink.
+    /// Whether a usable client exists.
     pub async fn status(&self) -> bool {
-        self.live_client().await.is_some()
+        self.client().await.is_some()
     }
 
-    /// The signed-in client, cloned out for use without holding the lock. A dead session reads as
-    /// signed out (and is dropped), so callers never hand a doomed client to librespot.
+    /// The signed-in client, cloned out for use without holding the lock.
     pub async fn client(&self) -> Option<Arc<Client>> {
-        self.live_client().await
+        if let Some(client) = self.live_client().await {
+            return Some(client);
+        }
+        if !self.provider.stored() || !self.may_recover() {
+            return None;
+        }
+        match self.restore().await {
+            Ok(true) => {
+                tracing::info!("spotify: recovered the cached session on demand");
+                self.live_client().await
+            }
+            Ok(false) => None,
+            Err(e) => {
+                tracing::warn!(error = %e, "spotify: on-demand session recovery failed");
+                None
+            }
+        }
+    }
+
+    fn may_recover(&self) -> bool {
+        let mut last = self.last_recovery.lock();
+        if matches!(*last, Some(at) if at.elapsed() < RECOVERY_COOLDOWN) {
+            return false;
+        }
+        *last = Some(std::time::Instant::now());
+        true
     }
 
     /// A session that is both present and still connected; drops (and logs) one that died.
@@ -168,35 +190,6 @@ impl SpotifyState {
             }
         }
         live
-    }
-
-    /// The client for playback/browsing, recovering a dead or missing one from the saved
-    /// credentials the first time this process needs it. This is the fix for "every song is
-    /// skipped as unavailable, and it asks me to sign in every time I open it": a startup
-    /// restore that raced with server bind, or a session that died mid-life, used to leave the
-    /// daemon permanently signed-out for that run. Recovery is attempted exactly once per
-    /// credential lifetime so a genuinely dead credential pair cannot stall every track start.
-    pub async fn client_or_recover(&self) -> Option<Arc<Client>> {
-        if let Some(client) = self.live_client().await {
-            return Some(client);
-        }
-        if !self.provider.stored()
-            || self.recovery_used.swap(true, std::sync::atomic::Ordering::Relaxed)
-        {
-            return None;
-        }
-        // `restore` serializes against the startup restore itself.
-        match self.restore().await {
-            Ok(true) => {
-                tracing::info!("spotify: recovered the cached session on demand");
-                self.live_client().await
-            }
-            Ok(false) => None,
-            Err(e) => {
-                tracing::warn!(error = %e, "spotify: on-demand session recovery failed");
-                None
-            }
-        }
     }
 
     /// Restore a client from cached credentials. Returns whether one was restored (or was
@@ -231,7 +224,7 @@ impl SpotifyState {
     {
         let client = self.provider.sign_in(on_url).await?;
         *self.client.write().await = Some(Arc::new(client));
-        self.recovery_used.store(false, std::sync::atomic::Ordering::Relaxed);
+        *self.last_recovery.lock() = None;
         Ok(())
     }
 
@@ -239,6 +232,27 @@ impl SpotifyState {
     pub async fn sign_out(&self) {
         self.provider.sign_out();
         *self.client.write().await = None;
-        self.recovery_used.store(false, std::sync::atomic::Ordering::Relaxed);
+        *self.last_recovery.lock() = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_spent_recovery_re_arms_after_the_cooldown() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = dir.path().join("spotify");
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(cache.join("credentials.json"), b"{").unwrap();
+
+        let state = SpotifyState::new(dir.path().to_path_buf(), Provider::Spotify);
+        assert!(state.stored());
+        assert!(state.client().await.is_none());
+        assert!(!state.may_recover());
+
+        *state.last_recovery.lock() = Some(std::time::Instant::now() - RECOVERY_COOLDOWN);
+        assert!(state.may_recover());
     }
 }

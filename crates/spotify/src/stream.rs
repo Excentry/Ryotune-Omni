@@ -195,7 +195,9 @@ impl Fifo {
         let dir = runtime_dir().join("ryotunes");
         std::fs::create_dir_all(&dir)
             .with_context(|| format!("cannot create the FIFO directory {}", dir.display()))?;
-        let path = dir.join(format!("spotify-{}.pcm", std::process::id()));
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let serial = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = dir.join(format!("spotify-{}-{serial}.pcm", std::process::id()));
         // A stale FIFO from a crashed run would be reused with the wrong permissions/owner; start
         // fresh.
         let _ = std::fs::remove_file(&path);
