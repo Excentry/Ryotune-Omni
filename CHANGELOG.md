@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed music stopping and the app closing after a few minutes of playback: the daemon's hidden YouTube helper views loaded the desktop accessibility bridge, and when the session's accessibility bus went stale the bridge crashed the whole daemon the next time a helper view was built. The daemon no longer loads the bridge at all, since those views are never shown.
+
 ## v1.1.6 - 2026-09-25
 
 - SoundCloud sign-in now happens in your own browser instead of a Ryotunes window: pressing Connect opens soundcloud.com (captchas and Google/Facebook/Apple popups work there), and the daemon watches your browser's cookie stores — Firefox-family and Chromium-family profiles, default browser first — importing the session the moment it appears and proving the token against `/me` before saving it. Already signed in in the browser? One click imports it instantly, no browser round trip. Cookie stores are only re-read when their file actually changes, and an unfinished sign-in ends with a clear message after five minutes rather than hanging.

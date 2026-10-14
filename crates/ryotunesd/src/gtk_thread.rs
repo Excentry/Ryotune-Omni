@@ -21,6 +21,13 @@ impl Gtk {
         // (`set_var` is safe on the 2021 edition and this runs before the GTK thread exists.)
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        // The views are never shown, so they need no accessibility. GTK otherwise loads the
+        // AT-SPI bridge in `gtk::init`, and when the session's a11y bus is stale or replaced
+        // mid-session the bridge segfaults the daemon the next time a view is built, killing
+        // playback and the client with it. Scoped to init so the client and the browser the
+        // daemon opens keep their accessibility.
+        let inherited_no_at_bridge = std::env::var_os("NO_AT_BRIDGE");
+        std::env::set_var("NO_AT_BRIDGE", "1");
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::Builder::new()
             .name("gtk".into())
@@ -33,7 +40,12 @@ impl Gtk {
                 gtk::main();
             })
             .expect("spawn gtk thread");
-        Gtk { ctx: rx.recv().expect("gtk thread reported its context") }
+        let ctx = rx.recv().expect("gtk thread reported its context");
+        match inherited_no_at_bridge {
+            Some(v) => std::env::set_var("NO_AT_BRIDGE", v),
+            None => std::env::remove_var("NO_AT_BRIDGE"),
+        }
+        Gtk { ctx }
     }
 
     /// Run `f` on the GTK thread and await its result.
