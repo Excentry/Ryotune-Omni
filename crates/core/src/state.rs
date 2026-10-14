@@ -2250,6 +2250,10 @@ impl AppState {
                 }
             });
             m.set_metadata(&item.title, &item.artists, item.album.as_deref(), cover.as_deref());
+            let secs = parse_duration_ms(item.duration.as_deref()) as f64 / 1000.0;
+            if secs > 0.0 {
+                m.set_duration(secs);
+            }
         }
         if let Some(d) = &self.discord {
             d.set_track(item);
