@@ -41,3 +41,19 @@ function providerOf(id) {
         return "soundcloud";
     return "youtube";
 }
+
+// The catalogue glyph a card or row wears so its source reads at a glance: "youtube-music",
+// "spotify" or "soundcloud". Ryotunes' own collections (smart playlists, local playlists, files
+// on disk, radio) come from no catalogue and get "".
+function sourceGlyph(id) {
+    switch (providerOf(id)) {
+    case "spotify":
+        return "spotify";
+    case "soundcloud":
+        return "soundcloud";
+    case "youtube":
+        return isSmartPlaylistId(id) || id.indexOf("RYOTUNES_") === 0 ? "" : "youtube-music";
+    default:
+        return "";
+    }
+}

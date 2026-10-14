@@ -45,6 +45,9 @@ Rectangle {
     readonly property string duration: (song && song.duration && /^[\d:]+$/.test(song.duration)) ? song.duration : ""
     readonly property string album: (song && song.album) ? song.album : ""
     readonly property string plays: (song && song.play_count) ? song.play_count : ""
+    // The catalogue the track comes from, as a glyph in that catalogue's colour beside the title.
+    readonly property string sourceGlyph: song ? Ids.sourceGlyph(song.video_id) : ""
+    readonly property color sourceColor: Style.providerColors[song ? Ids.providerOf(song.video_id) : ""] || Tokens.inkMuted
 
     implicitHeight: Style.rowH
     radius: Style.radius
@@ -156,6 +159,12 @@ Rectangle {
                     border.color: Tokens.inkFaint
                     Text { anchors.centerIn: parent; text: "E"; color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.xs; font.weight: Font.DemiBold }
                 }
+                Icon {
+                    visible: root.sourceGlyph !== ""
+                    name: root.sourceGlyph
+                    size: Style.sp(3.5)
+                    color: root.sourceColor
+                }
             }
             Text {
                 Layout.fillWidth: true
@@ -191,6 +200,12 @@ Rectangle {
                 border.width: 1
                 border.color: Tokens.inkFaint
                 Text { anchors.centerIn: parent; text: "E"; color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.xs; font.weight: Font.DemiBold }
+            }
+            Icon {
+                visible: root.sourceGlyph !== ""
+                name: root.sourceGlyph
+                size: Style.sp(3.5)
+                color: root.sourceColor
             }
         }
 

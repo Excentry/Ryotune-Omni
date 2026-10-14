@@ -86,6 +86,17 @@ Item {
                     : (root.item && Ids.isOnRepeatId(root.item.id)) ? "on-repeat" : "music"
             }
 
+            // where it comes from: top-left, clear of the hover play; on an artist circle it sits
+            // on the rim at 45° instead of hanging off the empty corner
+            ProviderBadge {
+                id: badge
+                itemId: root.item ? root.item.id : ""
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: root.round ? Math.max(0, Math.round(parent.width * 0.146 - badge.width / 2))
+                    : Style.sp(2)
+            }
+
             // hover ring
             Rectangle {
                 anchors.fill: parent
