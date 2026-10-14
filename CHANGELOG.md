@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fixed Spotify playback stopping at the end of every track instead of moving on, and seeking doing nothing: the track now ends cleanly into the next one, and seeking jumps within the already-buffered track.
+- Spotify tracks now show their length in the desktop media widget.
+- Saved Spotify songs, albums and artists now come back newest first, and Spotify playlists and Liked Songs have the same sort menu as the other providers.
+- A Spotify session that drops mid-listen now reconnects on its own from the saved sign-in, with a short cooldown between attempts, instead of giving up after the first reconnect. An account Spotify refuses outright (no Premium, out of region, revoked) is not retried until you sign in again.
+- YouTube Music now answers in your system language and region (from `LC_ALL`, `LC_MESSAGES` or `LANG`) instead of always US English. The Tauri build's own menus and dialogs also gain a French translation.
+
 ## v1.1.7 - 2026-10-14
 
 - Fixed music stopping and the app closing after a few minutes of playback: the daemon's hidden YouTube helper views loaded the desktop accessibility bridge, and when the session's accessibility bus went stale the bridge crashed the whole daemon the next time a helper view was built. The daemon no longer loads the bridge at all, since those views are never shown.
