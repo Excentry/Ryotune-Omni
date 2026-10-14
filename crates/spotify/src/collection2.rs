@@ -117,13 +117,18 @@ pub(crate) async fn saved_items(
         found.extend(page.items.into_iter().filter(|item| item.uri.starts_with(prefix)));
 
         token = page.next;
-        if found.len() >= limit || token.is_empty() {
+        if token.is_empty() {
             break;
         }
     }
 
-    found.truncate(limit);
+    newest_first(&mut found, limit);
     Ok(found)
+}
+
+fn newest_first(found: &mut Vec<SavedItem>, limit: usize) {
+    found.sort_by(|a, b| b.added_at.cmp(&a.added_at));
+    found.truncate(limit);
 }
 
 fn headers() -> HeaderMap {
@@ -167,7 +172,7 @@ fn kept(bytes: &[u8]) -> Result<Option<SavedItem>> {
         match (field, value) {
             (ITEM_URI, Value::Bytes(raw)) => uri = Some(text(raw)?),
             (ITEM_ADDED_AT, Value::Varint(raw) | Value::Fixed(raw)) => {
-                added_at = Some(raw as u32 as i32 as i64);
+                added_at = Some(raw as i64);
             }
             (ITEM_REMOVED, Value::Varint(flag)) => removed = flag != 0,
             _ => (),
@@ -217,5 +222,51 @@ mod tests {
         writer.int32(ITEM_REMOVED, 1);
 
         assert!(kept(&writer.finish()).unwrap().is_none());
+    }
+
+    fn saved(uri: &str, added_at: Option<i64>) -> SavedItem {
+        SavedItem { uri: uri.to_owned(), added_at }
+    }
+
+    #[test]
+    fn orders_saved_items_newest_first() {
+        let mut found = vec![
+            saved("spotify:track:a", Some(100)),
+            saved("spotify:track:b", None),
+            saved("spotify:track:c", Some(300)),
+            saved("spotify:track:d", Some(200)),
+        ];
+
+        newest_first(&mut found, 4);
+
+        let uris: Vec<_> = found.iter().map(|item| item.uri.as_str()).collect();
+        assert_eq!(
+            uris,
+            ["spotify:track:c", "spotify:track:d", "spotify:track:a", "spotify:track:b"]
+        );
+    }
+
+    #[test]
+    fn keeps_the_newest_when_the_limit_cuts() {
+        let mut found = vec![
+            saved("spotify:track:oldest", Some(1)),
+            saved("spotify:track:newest", Some(9)),
+            saved("spotify:track:middle", Some(5)),
+        ];
+
+        newest_first(&mut found, 2);
+
+        let uris: Vec<_> = found.iter().map(|item| item.uri.as_str()).collect();
+        assert_eq!(uris, ["spotify:track:newest", "spotify:track:middle"]);
+    }
+
+    #[test]
+    fn undated_items_keep_their_order() {
+        let mut found = vec![saved("spotify:track:z", None), saved("spotify:track:a", None)];
+
+        newest_first(&mut found, 2);
+
+        let uris: Vec<_> = found.iter().map(|item| item.uri.as_str()).collect();
+        assert_eq!(uris, ["spotify:track:z", "spotify:track:a"]);
     }
 }
