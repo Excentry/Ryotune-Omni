@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Void Linux support: `scripts/install-void.sh` and Settings → About → Update now install the release as an xbps package. See docs/INSTALL-VOID.md.
+- Fixed the daemon not starting on glibc older than 2.44 (Void ships 2.41). Release builds now fail if any binary needs a newer glibc than 2.41.
+- Fixed missing cover art on Void: the package now pulls in Qt's TLS plugin, and `ryotunes-diagnostics` reports when it's missing.
+
 ## v1.2.1 - 2026-10-17
 
 ## v1.2.0 - 2026-10-14

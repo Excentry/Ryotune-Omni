@@ -240,7 +240,7 @@ The design rules behind the interface are documented in **[docs/DESIGN.md](docs/
 
 ## Install
 
-Ryotunes targets **x86_64 Ryoku, CachyOS and Arch-based systems**.
+Ryotunes targets **x86_64 Ryoku, CachyOS and Arch-based systems**, and Void Linux (see **[docs/INSTALL-VOID.md](docs/INSTALL-VOID.md)**).
 
 The published package is **`ryotunes 1:<version>-1`**. Its permanent `epoch=1` orders it above distribution-numbered 2.x packages; filenames stay epochless. This numbering transition is not a switch from QML to Tauri.
 
