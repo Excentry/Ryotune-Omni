@@ -51,6 +51,37 @@ struct Asset {
     size: u64,
 }
 
+/// Who owns this installation, which decides how an update lands. Arch installs the release's
+/// own package; Void and Fedora take the release from the Ryoku repository, which builds it
+/// from the release source.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Manager {
+    Pacman,
+    Xbps,
+    Dnf,
+}
+
+impl Manager {
+    const ALL: [Manager; 3] = [Manager::Pacman, Manager::Xbps, Manager::Dnf];
+
+    /// The binary whose presence names the host's package manager.
+    fn binary(self) -> &'static str {
+        match self {
+            Manager::Pacman => "/usr/bin/pacman",
+            Manager::Xbps => "/usr/bin/xbps-install",
+            Manager::Dnf => "/usr/bin/dnf",
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Manager::Pacman => "pacman",
+            Manager::Xbps => "xbps",
+            Manager::Dnf => "dnf",
+        }
+    }
+}
+
 // Canonical v1 versions only: no traversal, prereleases, leading zeroes or legacy v2 tags.
 fn version(raw: &str) -> Option<(u64, u64, u64)> {
     let mut parts = raw.split('.');
@@ -72,7 +103,11 @@ fn package_name(version: &str) -> String {
     format!("ryotunes-{version}-1-x86_64.pkg.tar.zst")
 }
 
-fn release_info(release: Option<Release>, current: &str, reason: Option<String>) -> UpdateInfo {
+fn release_info(
+    release: Option<Release>,
+    current: &str,
+    installation: Result<Manager, String>,
+) -> UpdateInfo {
     let mut info = UpdateInfo {
         current_version: current.into(),
         latest_version: None,
@@ -80,7 +115,7 @@ fn release_info(release: Option<Release>, current: &str, reason: Option<String>)
         release_url: format!("{REPOSITORY}/releases"),
         notes: String::new(),
         can_install: false,
-        unsupported_reason: reason,
+        unsupported_reason: installation.as_ref().err().cloned(),
         restart_pending: false,
     };
     let Some(release) = release else { return info };
@@ -94,16 +129,19 @@ fn release_info(release: Option<Release>, current: &str, reason: Option<String>)
     info.available = version(current).is_none_or(|installed| next > installed);
     info.release_url = format!("{REPOSITORY}/releases/tag/v{latest}");
     info.notes = release.body.unwrap_or_default();
-    let name = package_name(latest);
-    let checksum = format!("{name}.sha256");
-    let has_package =
-        release.assets.iter().any(|a| a.name == name && a.size > 0 && a.size <= MAX_PACKAGE);
-    let has_checksum =
-        release.assets.iter().any(|a| a.name == checksum && a.size > 0 && a.size <= 4096);
-    if !has_package || !has_checksum {
-        info.unsupported_reason = Some("This release has no complete x86_64 Arch package and checksum. View the changelog or check again after the release build finishes.".into());
+    // Only pacman installs the release's own package; the repositories build from its source.
+    if installation == Ok(Manager::Pacman) {
+        let name = package_name(latest);
+        let checksum = format!("{name}.sha256");
+        let has_package =
+            release.assets.iter().any(|a| a.name == name && a.size > 0 && a.size <= MAX_PACKAGE);
+        let has_checksum =
+            release.assets.iter().any(|a| a.name == checksum && a.size > 0 && a.size <= 4096);
+        if !has_package || !has_checksum {
+            info.unsupported_reason = Some("This release has no complete x86_64 Arch package and checksum. View the changelog or check again after the release build finishes.".into());
+        }
     }
-    info.can_install = info.unsupported_reason.is_none() && has_package && has_checksum;
+    info.can_install = info.unsupported_reason.is_none();
     info
 }
 
@@ -130,24 +168,56 @@ async fn bounded_body(mut response: reqwest::Response, limit: usize) -> Result<V
     Ok(bytes)
 }
 
-async fn installation_reason() -> Option<String> {
+async fn installation() -> Result<Manager, String> {
     if !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        return Some("Self update supports the x86_64 Arch Linux package. Download a release for your platform instead.".into());
+        return Err("Self update supports the x86_64 Linux packages. Download a release for your platform instead.".into());
     }
-    if !Path::new("/usr/bin/pacman").is_file() || !Path::new("/usr/bin/pkexec").is_file() {
-        return Some(
-            "Self update needs pacman and polkit (pkexec), with a desktop authentication agent."
-                .into(),
+    let Some(manager) = Manager::ALL.into_iter().find(|m| Path::new(m.binary()).is_file()) else {
+        return Err("Self update needs pacman, xbps or dnf, with polkit (pkexec) and a desktop authentication agent.".into());
+    };
+    if !Path::new("/usr/bin/pkexec").is_file() {
+        return Err(
+            "Self update needs polkit (pkexec), with a desktop authentication agent.".into()
         );
     }
     let exe = match std::env::current_exe() {
         Ok(exe) => on_disk(exe),
-        Err(e) => return Some(format!("Cannot determine the running installation: {e}")),
+        Err(e) => return Err(format!("Cannot determine the running installation: {e}")),
     };
-    let owner = Command::new("/usr/bin/pacman").args(["-Qoq"]).arg(exe).kill_on_drop(true).output();
-    match tokio::time::timeout(Duration::from_secs(10), owner).await {
-        Ok(Ok(output)) if output.status.success() && output.stdout == b"ryotunes\n" => None,
-        _ => Some("This copy of Ryotunes was not installed from its pacman package, so it cannot update itself. Install the package from the release page; development builds are never overwritten.".into()),
+    let mut owner = match manager {
+        Manager::Pacman => package_query("/usr/bin/pacman", &["-Qoq"]),
+        Manager::Xbps => package_query("/usr/bin/xbps-query", &["-o"]),
+        Manager::Dnf => package_query("/usr/bin/rpm", &["-qf", "--qf", "%{NAME}\n"]),
+    };
+    match tokio::time::timeout(Duration::from_secs(10), owner.arg(exe).output()).await {
+        Ok(Ok(output))
+            if output.status.success()
+                && owned_by_ryotunes(manager, &String::from_utf8_lossy(&output.stdout)) =>
+        {
+            Ok(manager)
+        }
+        _ if manager == Manager::Pacman => Err("This copy of Ryotunes was not installed from its pacman package, so it cannot update itself. Install the package from the release page; development builds are never overwritten.".into()),
+        _ => Err("This copy of Ryotunes was not installed from the Ryoku package repository, so it cannot update itself. Development builds are never overwritten.".into()),
+    }
+}
+
+fn package_query(program: &str, args: &[&str]) -> Command {
+    let mut command = Command::new(program);
+    command.args(args).kill_on_drop(true);
+    command
+}
+
+/// Whether an owner query's output names the ryotunes package. `xbps-query -o` prints
+/// `ryotunes-1.2.1_1: /usr/bin/ryotunesd (regular file)`; pacman and rpm print the name.
+fn owned_by_ryotunes(manager: Manager, output: &str) -> bool {
+    match manager {
+        Manager::Pacman | Manager::Dnf => output == "ryotunes\n",
+        Manager::Xbps => output
+            .lines()
+            .next()
+            .and_then(|line| line.split_once(':'))
+            .and_then(|(pkgver, _)| xbps_version(pkgver))
+            .is_some(),
     }
 }
 
@@ -160,20 +230,27 @@ fn on_disk(exe: PathBuf) -> PathBuf {
     }
 }
 
-/// The installed package's version, which runs ahead of this daemon once pacman (a system
-/// upgrade, or an update installed from another window) has replaced the files underneath it.
-async fn installed_package_version() -> Result<Option<String>, String> {
-    let output = tokio::time::timeout(
-        Duration::from_secs(10),
-        Command::new("/usr/bin/pacman").args(["-Q", "ryotunes"]).kill_on_drop(true).output(),
-    )
-    .await
-    .map_err(|_| "Timed out reading the installed package.")?
-    .map_err(|e| format!("Could not query the installed package: {e}"))?;
+/// The installed package's version, which runs ahead of this daemon once the package manager (a
+/// system upgrade, or an update installed from another window) has replaced the files under it.
+async fn installed_package_version(manager: Manager) -> Result<Option<String>, String> {
+    let mut query = match manager {
+        Manager::Pacman => package_query("/usr/bin/pacman", &["-Q", "ryotunes"]),
+        Manager::Xbps => package_query("/usr/bin/xbps-query", &["-p", "pkgver", "ryotunes"]),
+        Manager::Dnf => package_query("/usr/bin/rpm", &["-q", "--qf", "%{VERSION}\n", "ryotunes"]),
+    };
+    let output = tokio::time::timeout(Duration::from_secs(10), query.output())
+        .await
+        .map_err(|_| "Timed out reading the installed package.")?
+        .map_err(|e| format!("Could not query the installed package: {e}"))?;
     if !output.status.success() {
         return Err("Could not query the installed Ryotunes package.".into());
     }
-    Ok(package_version(&String::from_utf8_lossy(&output.stdout)))
+    let query = String::from_utf8_lossy(&output.stdout);
+    Ok(match manager {
+        Manager::Pacman => package_version(&query),
+        Manager::Xbps => xbps_version(query.trim()),
+        Manager::Dnf => version(query.trim()).map(|_| query.trim().to_owned()),
+    })
 }
 
 /// `ryotunes 1:1.1.9-1` → `1.1.9`.
@@ -184,7 +261,16 @@ fn package_version(query: &str) -> Option<String> {
         .and_then(|value| value.rsplit_once('-').map(|(version, _)| version.to_owned()))
 }
 
-pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+/// `ryotunes-1.2.1_1` → `1.2.1`; another package's pkgver is `None`.
+fn xbps_version(pkgver: &str) -> Option<String> {
+    let (version, revision) = pkgver.strip_prefix("ryotunes-")?.rsplit_once('_')?;
+    (version.starts_with(|c: char| c.is_ascii_digit())
+        && !revision.is_empty()
+        && revision.bytes().all(|byte| byte.is_ascii_digit()))
+    .then(|| version.to_owned())
+}
+
+async fn check() -> Result<(UpdateInfo, Option<Manager>), String> {
     let response = response(LATEST, Duration::from_secs(30)).await?;
     let release = if response.status() == reqwest::StatusCode::NOT_FOUND {
         None
@@ -195,12 +281,18 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
                 .map_err(|e| format!("Invalid GitHub release metadata: {e}"))?,
         )
     };
-    let mut info = release_info(release, env!("CARGO_PKG_VERSION"), installation_reason().await);
-    if info.available && info.can_install {
-        info.restart_pending = installed_package_version().await.ok().flatten().as_deref()
+    let installation = installation().await;
+    let manager = installation.as_ref().ok().copied();
+    let mut info = release_info(release, env!("CARGO_PKG_VERSION"), installation);
+    if let (true, true, Some(manager)) = (info.available, info.can_install, manager) {
+        info.restart_pending = installed_package_version(manager).await.ok().flatten().as_deref()
             == info.latest_version.as_deref();
     }
-    Ok(info)
+    Ok((info, manager))
+}
+
+pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+    Ok(check().await?.0)
 }
 
 fn checksum(bytes: &[u8], name: &str) -> Result<String, String> {
@@ -257,7 +349,7 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
         return Err("Select a valid v1 release.".into());
     }
     let _guard = INSTALL.try_lock().map_err(|_| "An update is already in progress.")?;
-    let info = check_for_updates().await?;
+    let (info, manager) = check().await?;
     if info.latest_version.as_deref() != Some(&requested) {
         return Err(
             "The latest release changed. Check for new versions again before updating.".into()
@@ -271,8 +363,11 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
             .unsupported_reason
             .unwrap_or_else(|| "Self update is not available for this installation.".into()));
     }
+    let Some(manager) = manager else {
+        return Err("Self update is not available for this installation.".into());
+    };
     // A system upgrade may already have replaced the files while this older daemon kept running.
-    if let Some(installed_version) = installed_package_version().await? {
+    if let Some(installed_version) = installed_package_version(manager).await? {
         if version(&installed_version) > version(&requested) {
             return Err(
                 "A newer package is already installed. Quit Ryotunes and open it again.".into()
@@ -282,12 +377,20 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
             return Ok(InstalledUpdate { version: requested, restart_required: true });
         }
     }
+    match manager {
+        Manager::Pacman => install_release_package(&requested).await?,
+        Manager::Xbps | Manager::Dnf => install_from_repository(manager, &requested).await?,
+    }
+    Ok(InstalledUpdate { version: requested, restart_required: true })
+}
+
+async fn install_release_package(requested: &str) -> Result<(), String> {
     // Private random staging, removed on every success/error. No user-controlled path reaches root.
     let staging = tempfile::Builder::new()
         .prefix("ryotunes-update-")
         .tempdir()
         .map_err(|e| format!("Could not create private update staging: {e}"))?;
-    let name = package_name(&requested);
+    let name = package_name(requested);
     let url = format!("{REPOSITORY}/releases/download/v{requested}/{name}");
     let expected = checksum(
         &bounded_body(response(&format!("{url}.sha256"), Duration::from_secs(30)).await?, 4096)
@@ -329,7 +432,39 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
             detail.trim()
         ));
     }
-    Ok(InstalledUpdate { version: requested, restart_required: true })
+    Ok(())
+}
+
+/// Void and Fedora take the release from the Ryoku repository the system already trusts: a
+/// fixed command under polkit, with the repository's own signature policy. The version check
+/// afterwards tells an installed release from one the repository has not built yet.
+async fn install_from_repository(manager: Manager, requested: &str) -> Result<(), String> {
+    let command: &[&str] = match manager {
+        Manager::Xbps => &["/usr/bin/xbps-install", "-Syu", "ryotunes"],
+        Manager::Dnf => &["/usr/bin/dnf", "upgrade", "-y", "--refresh", "ryotunes"],
+        Manager::Pacman => return Err("pacman installs the release package itself.".into()),
+    };
+    // Do not kill the package manager on a timeout: interrupting a committed transaction can
+    // damage the install.
+    let output = Command::new("/usr/bin/pkexec")
+        .args(command)
+        .stdin(Stdio::null())
+        .output()
+        .await
+        .map_err(|e| format!("Could not start the administrator approval: {e}"))?;
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "Update was cancelled or {} could not update the package ({}). {}",
+            manager.name(),
+            output.status,
+            detail.trim()
+        ));
+    }
+    if installed_package_version(manager).await?.as_deref() != Some(requested) {
+        return Err(format!("The Ryoku package repository does not have Ryotunes {requested} yet, so nothing changed. It builds each release on its next update; check again later."));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -352,11 +487,13 @@ mod tests {
 
     #[test]
     fn release_series_and_numeric_order() {
-        assert!(release_info(Some(release("v1.1.0")), "1.0.9", None).available);
-        assert!(!release_info(Some(release("v1.0.9")), "1.1.0", None).available);
-        assert!(!release_info(Some(release("v1.1.0")), "1.1.0", None).available);
-        assert!(release_info(Some(release("v1.0.0")), "2.5.1", None).available);
-        assert!(release_info(Some(release("v2.5.1")), "1.0.0", None).latest_version.is_none());
+        assert!(release_info(Some(release("v1.1.0")), "1.0.9", Ok(Manager::Pacman)).available);
+        assert!(!release_info(Some(release("v1.0.9")), "1.1.0", Ok(Manager::Pacman)).available);
+        assert!(!release_info(Some(release("v1.1.0")), "1.1.0", Ok(Manager::Pacman)).available);
+        assert!(release_info(Some(release("v1.0.0")), "2.5.1", Ok(Manager::Pacman)).available);
+        assert!(release_info(Some(release("v2.5.1")), "1.0.0", Ok(Manager::Pacman))
+            .latest_version
+            .is_none());
         assert!(version("1.0.10").is_none());
         assert!(version("1.01.0").is_none());
         assert!(version("1.0.0/../../bad").is_none());
@@ -366,14 +503,44 @@ mod tests {
     fn incomplete_or_unpublished_releases_cannot_install() {
         let mut value = release("v1.0.1");
         value.assets.pop();
-        let info = release_info(Some(value), "1.0.0", None);
+        let info = release_info(Some(value), "1.0.0", Ok(Manager::Pacman));
         assert!(info.available && !info.can_install);
         let mut value = release("v1.0.1");
         value.prerelease = true;
-        assert!(release_info(Some(value), "1.0.0", None).latest_version.is_none());
+        assert!(release_info(Some(value), "1.0.0", Ok(Manager::Pacman)).latest_version.is_none());
         assert!(
-            !release_info(Some(release("v1.0.1")), "1.0.0", Some("Unmanaged".into())).can_install
+            !release_info(Some(release("v1.0.1")), "1.0.0", Err("Unmanaged".into())).can_install
         );
+    }
+
+    // Void and Fedora build the release from its source, so a release without the Arch package
+    // still installs there; Settings used to refuse with "Self update needs pacman".
+    #[test]
+    fn repository_installs_need_only_the_release() {
+        let bare = || Release { assets: Vec::new(), ..release("v1.0.1") };
+        for manager in [Manager::Xbps, Manager::Dnf] {
+            let info = release_info(Some(bare()), "1.0.0", Ok(manager));
+            assert!(info.available && info.can_install && info.unsupported_reason.is_none());
+        }
+        assert!(!release_info(Some(bare()), "1.0.0", Ok(Manager::Pacman)).can_install);
+    }
+
+    #[test]
+    fn package_queries_name_ryotunes_and_its_version() {
+        assert_eq!(xbps_version("ryotunes-1.2.1_1").as_deref(), Some("1.2.1"));
+        assert_eq!(xbps_version("ryotunes-cli-1.2.1_1"), None);
+        assert_eq!(xbps_version("ryotunes-1.2.1"), None);
+        assert!(owned_by_ryotunes(
+            Manager::Xbps,
+            "ryotunes-1.2.1_1: /usr/bin/ryotunesd (regular file)\n"
+        ));
+        assert!(!owned_by_ryotunes(Manager::Xbps, "mpv-0.39.0_1: /usr/bin/mpv (regular file)\n"));
+        assert!(owned_by_ryotunes(Manager::Dnf, "ryotunes\n"));
+        assert!(!owned_by_ryotunes(
+            Manager::Dnf,
+            "file /usr/bin/ryotunesd is not owned by any package\n"
+        ));
+        assert_eq!(package_version("ryotunes 1:1.1.9-1\n").as_deref(), Some("1.1.9"));
     }
 
     #[tokio::test]
