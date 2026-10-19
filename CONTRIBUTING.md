@@ -96,13 +96,46 @@ Check for:
 
 ## Pull requests
 
-Include:
+### Title format
 
-1. what changed;
-2. why it changed;
-3. what lifecycle or UI surface is affected;
-4. how it was validated;
-5. screenshots or measurements when they improve review quality.
+Use this format for pull request titles:
+
+```text
+<type>(<scope>): <short description>
+```
+
+Use a scope when it clarifies the affected area; examples include `player`, `spotify`, `ui`, `windows`, `android`, `ci`, and `docs`. Keep the title concise, lowercase, and without a trailing period.
+
+Common types:
+
+| Type | Use for |
+| --- | --- |
+| `feat` | New user-facing behavior |
+| `fix` | Bug fixes |
+| `refactor` | Behavior-preserving restructuring |
+| `perf` | Performance or resource-use improvements |
+| `test` | Tests and test infrastructure |
+| `docs` | Documentation |
+| `build` | Build and packaging changes |
+| `ci` | Continuous integration and automation |
+| `chore` | Other maintenance |
+| `revert` | Reverting a previous change |
+
+For an incompatible API or behavior change, add `!` before the colon and explain migration requirements in the PR description, for example `feat(protocol)!: change playback event payload`. Do not use release titles such as `release: v1.2.4` for ordinary changes; releases follow the dedicated release process.
+
+Examples:
+
+- `feat(player): add device reconnect`
+- `fix(spotify): handle Windows cancellation`
+- `docs(portability): update compatibility status`
+- `ci(windows): build selected Rust packages`
+- `feat(player): restore playback after device reconnect`
+- `fix(spotify): handle stream cancellation on Windows`
+- `docs(portability): clarify Windows validation status`
+
+### Description
+
+Keep each PR focused. Explain what changed and how it was validated; add screenshots for UI changes.
 
 For large architectural changes, propose the scope and alternatives before implementation. Use the repository's available pull-request mechanism; use Issues or Discussions only if enabled. Do not assume an upstream community channel represents Ryotune-Omni.
 
