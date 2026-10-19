@@ -42,10 +42,8 @@ package, checks SHA-256 and its internal name/version, then asks polkit for
 administrator approval to run `pacman -U`. Pacman's dependency and signature
 policy still applies. It requires the official `ryotunes` pacman package and a
 desktop polkit authentication agent; development builds are not overwritten.
-On Ryoku's Void and Fedora editions, where Ryotunes comes from the Ryoku package
-repository, the same button asks polkit to run `xbps-install -Syu ryotunes` or
-`dnf upgrade --refresh ryotunes` instead, and reports a release the repository
-has not built yet rather than installing anything.
+On Void the same button repacks that package into an `.xbps` and installs it
+with `xbps-install`; see [INSTALL-VOID.md](INSTALL-VOID.md).
 There is no background update polling. Keep the app open during installation,
 then **Quit and reopen** it to reload both the interface and background daemon.
 

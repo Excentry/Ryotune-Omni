@@ -3,6 +3,8 @@ mod browser_auth;
 mod diagnostics;
 mod download_media;
 mod downloads;
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+mod glibc_compat;
 mod gtk_thread;
 mod js;
 mod lifecycle;

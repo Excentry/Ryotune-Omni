@@ -6,7 +6,12 @@ line() { printf '%-22s %s\n' "$1" "$2"; }
 
 printf '%s\n' 'Ryotunes diagnostics (sanitized)'
 printf '%s\n' '--------------------------------'
-line 'Ryotunes package:' "$(pacman -Q ryotunes-v2.4 2>/dev/null | awk '{print $2}' || pacman -Q ryotunes 2>/dev/null | awk '{print $2}' || printf 'source/unpackaged')"
+if command -v xbps-query >/dev/null 2>&1; then
+  pkg_version="$(xbps-query -p pkgver ryotunes 2>/dev/null || printf 'source/unpackaged')"
+else
+  pkg_version="$(pacman -Q ryotunes-v2.4 2>/dev/null | awk '{print $2}' || pacman -Q ryotunes 2>/dev/null | awk '{print $2}' || printf 'source/unpackaged')"
+fi
+line 'Ryotunes package:' "$pkg_version"
 line 'Kernel:' "$(uname -sr 2>/dev/null || printf 'unknown')"
 line 'Architecture:' "$(uname -m 2>/dev/null || printf 'unknown')"
 line 'Session:' "${XDG_SESSION_TYPE:-unknown}"
@@ -47,8 +52,21 @@ else
 fi
 
 printf '\n%s\n' 'Dependency status'
-for p in webkit2gtk-4.1 libappindicator-gtk3 mpv openssl librsvg xdg-utils; do
-  if pacman -Q "$p" >/dev/null 2>&1; then printf '  [ok] %s\n' "$p"; else printf '  [!!] %s missing\n' "$p"; fi
+if command -v xbps-query >/dev/null 2>&1; then
+  deps=(libwebkit2gtk41 libayatana-appindicator mpv openssl librsvg xdg-utils quickshell)
+  have() { xbps-query "$1" >/dev/null 2>&1; }
+else
+  deps=(webkit2gtk-4.1 libappindicator-gtk3 mpv openssl librsvg xdg-utils)
+  have() { pacman -Q "$1" >/dev/null 2>&1; }
+fi
+for p in "${deps[@]}"; do
+  if have "$p"; then printf '  [ok] %s\n' "$p"; else printf '  [!!] %s missing\n' "$p"; fi
 done
+# The QML client loads cover art over HTTPS through Qt, which needs a TLS plugin.
+if compgen -G '/usr/lib/qt6/plugins/tls/*' >/dev/null; then
+  printf '  [ok] %s\n' 'Qt TLS plugin'
+else
+  printf '  [!!] %s\n' 'Qt TLS plugin missing (no cover art)'
+fi
 
 printf '\n%s\n' 'This report does not include Ryotunes logs, account details, cookies, tokens, local file paths, or network endpoints.'

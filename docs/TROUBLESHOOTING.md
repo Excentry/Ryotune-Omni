@@ -20,6 +20,10 @@ Confirm the network is available, then reopen the affected page. If the Google s
 
 Some tracks are region/account restricted or can temporarily fail across YouTube playback clients. Ryotunes tries its normal fallback chain automatically. Personal uploads require an active signed-in YouTube Music session.
 
+## Cover art is blank everywhere
+
+Qt has no TLS backend, so the QML client can't fetch any images (`qs log` shows `No functional TLS backend was found`). On Void install `qt6-plugin-tls-openssl` and restart Ryotunes. `ryotunes-diagnostics` checks for it.
+
 ## Touchpad scrolling stops over cards
 
 This should not happen in current builds: album art and cards do not capture wheel/two-finger events for volume. Only the actual volume slider handles a wheel gesture. Please attach a sanitized diagnostics report if you can reproduce it.

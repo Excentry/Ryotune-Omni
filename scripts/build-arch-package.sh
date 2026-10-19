@@ -74,6 +74,7 @@ name="$CONTRACT"
 makepkg --clean --cleanbuild --syncdeps --noconfirm --nocheck
 
 [[ -f "$built" ]] || { echo "expected package not produced: $built" >&2; exit 1; }
+"$ROOT/scripts/check-glibc.sh" "$built"
 
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"

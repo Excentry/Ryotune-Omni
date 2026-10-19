@@ -57,3 +57,5 @@ sha2 = "0.10"
 # its real duration. Same version core pins so the workspace resolves one `lofty` (in the lock
 # already via core, so `--locked` is unaffected).
 lofty = "0.22.2"
+# Pure-Rust sinh/cosh for `glibc_compat` (already in the lock).
+libm = "0.2"

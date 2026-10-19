@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Void Linux support: `scripts/install-void.sh` and Settings → About → Update now install the release as an xbps package. See docs/INSTALL-VOID.md.
+- Fixed the daemon not starting on glibc older than 2.44 (Void ships 2.41). Release builds now fail if any binary needs a newer glibc than 2.41.
+- Fixed missing cover art on Void: the package now pulls in Qt's TLS plugin, and `ryotunes-diagnostics` reports when it's missing.
+
 ## v1.2.2 - 2026-10-19
 
 - Settings ▸ Software updates now updates Ryotunes on Ryoku's Void and Fedora editions too. Where Ryotunes came from the Ryoku package repository, Update asks polkit to update it with xbps or dnf instead of refusing because pacman is missing, and says so when the repository has not built the new release yet.

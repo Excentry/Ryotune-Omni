@@ -1483,6 +1483,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4721,6 +4731,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruzstd"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5"
+dependencies = [
+ "twox-hash",
+]
+
+[[package]]
 name = "ryotunes"
 version = "1.2.2"
 dependencies = [
@@ -4780,6 +4799,7 @@ dependencies = [
  "reqwest 0.12.28",
  "rusqlite",
  "rustls 0.23.43",
+ "ruzstd",
  "ryotunes-soundcloud",
  "ryotunes-spotify",
  "ryotunes-tidal",
@@ -4787,6 +4807,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "souvlaki",
+ "tar",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
@@ -4874,6 +4895,7 @@ dependencies = [
  "javascriptcore-rs",
  "ksni",
  "libc",
+ "libm",
  "lofty",
  "parking_lot",
  "pbkdf2",
@@ -5765,6 +5787,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+]
+
+[[package]]
 name = "target-lexicon"
 version = "0.12.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6605,6 +6637,12 @@ dependencies = [
  "thiserror 2.0.20",
  "utf-8",
 ]
+
+[[package]]
+name = "twox-hash"
+version = "2.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
 
 [[package]]
 name = "typeid"
