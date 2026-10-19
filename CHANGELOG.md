@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.2.2 - 2026-10-19
+
 - Settings ▸ Software updates now updates Ryotunes on Ryoku's Void and Fedora editions too. Where Ryotunes came from the Ryoku package repository, Update asks polkit to update it with xbps or dnf instead of refusing because pacman is missing, and says so when the repository has not built the new release yet.
 
 ## v1.2.1 - 2026-10-17
