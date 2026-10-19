@@ -1,356 +1,278 @@
+# Ryotune-Omni
 
-<div align="center">
+An independent, community-driven fork of Ryotunes exploring Windows and Android ports of its desktop music-player experience.
 
-<img src="docs/assets/ryotunes-hero.svg" alt="Ryotunes — Music, shaped for Ryoku" width="100%" />
+Ryotune-Omni aims to preserve the original application's functionality, design language, themes, music ecosystem, and user experience wherever technically and legally possible. It builds on the work of the original authors; it does not claim ownership of their code.
 
-<br />
+**This is not an official Ryotunes or Ryoku project, and no affiliation or endorsement is implied.**
 
-<a href="https://github.com/ryoku-dev/ryotunes/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ryoku-dev/ryotunes?style=flat-square&label=release&color=9a604b"></a>
-<a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/github/license/ryoku-dev/ryotunes?style=flat-square&color=7f9b8d"></a>
-<img alt="Linux x86_64" src="https://img.shields.io/badge/Linux-x86__64-8996a8?style=flat-square&logo=linux&logoColor=white">
-<img alt="Ryoku native" src="https://img.shields.io/badge/Ryoku-native-6f7f76?style=flat-square">
-<img alt="Audio only" src="https://img.shields.io/badge/playback-audio%20only-a86d58?style=flat-square">
-<br />
-<img alt="Rust" src="https://img.shields.io/badge/Rust-native%20core-2d3136?style=flat-square&logo=rust&logoColor=white">
-<img alt="Quickshell / QML" src="https://img.shields.io/badge/UI-Quickshell%20%2F%20QML-2d3136?style=flat-square">
-<img alt="libmpv" src="https://img.shields.io/badge/audio-libmpv-2d3136?style=flat-square">
+## Project status
 
-<br /><br />
+**Experimental / work in progress. Windows and Android are planned targets, not supported releases.**
 
-**A Ryoku-native desktop music player with native audio playback, live shell theming, and a UI that knows when to disappear.**
+The inspected repository contains the inherited Linux-first application, its Rust workspace, a primary Quickshell/QML client, and an older Svelte/Tauri client. Some Windows-specific code and a Tauri mobile entry-point annotation already exist, but neither establishes a functioning Ryotune-Omni port.
 
-[Download](https://github.com/ryoku-dev/ryotunes/releases/latest) · [Architecture](docs/ARCHITECTURE.md) · [Install](docs/INSTALL-ARCH.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Ryoku](https://github.com/ryoku-dev/ryoku-arch)
+At this documentation update:
 
-</div>
+- No Ryotune-Omni releases were published on the fork's GitHub repository.
+- The inherited CI validates Linux and web frontend paths; it has no Windows or Android build job.
+- No Windows or Android application was compiled, run, or validated as part of this documentation review.
+- UI framework selection, target OS versions, Android ABIs, native-library packaging, and feature parity remain open engineering decisions.
 
-<br />
+Inherited version numbers, application identifiers, package names, and update links still refer to Ryotunes. They are not evidence of a Ryotune-Omni release. This README documents a direction, not an implemented migration.
 
-<img width="3369" height="2017" alt="2026_08_27_02_44_21_screenshot" src="https://github.com/user-attachments/assets/44aaf6cc-f88e-4c1d-97ff-c44e45d4c72b" width="100%"/>
+## Vision and principles
 
-<p align="center"><sub>Repository artwork based on the live v2 Home layout and Ryoku visual language.</sub></p>
+These are project goals, not completed achievements:
 
-### The primary client: Quickshell / QML
+- **Feature parity:** Preserve desktop functionality where feasible and document unavoidable platform differences.
+- **Code reuse:** Retain compatible Rust logic, provider integrations, data models, and persistence rather than rebuilding them unnecessarily.
+- **Platform independence:** Put OS-specific behavior behind explicit interfaces instead of spreading platform assumptions through shared code.
+- **Original identity:** Carry forward the application's visual language, themes, artwork-centered presentation, and listening experience, adapting interaction for desktop or mobile rather than creating an unrelated player.
+- **Maintainability:** Track upstream improvements while keeping port-specific divergence small and understandable.
+- **Transparency:** Publish limitations, incomplete features, technical decisions, and evidence behind compatibility claims.
+- **Open-source collaboration:** Welcome community contributions while preserving upstream attribution and complying with applicable licenses.
 
-**The QML client is the primary Ryotunes application.** It includes the YouTube,
-Spotify and SoundCloud provider selector, downloads, and Settings → About
-software-update controls. The Tauri/WebKitGTK interface is the legacy client,
-not its replacement. Package version numbers alone do not identify the client:
-the release package currently contains both.
+## Platform support
 
-To update an existing installation, download the Arch package and matching
-checksum from [the latest release](https://github.com/ryoku-dev/ryotunes/releases/latest).
-Verify it before changing the installed application:
+| Platform | Repository baseline | Ryotune-Omni status |
+| --- | --- | --- |
+| Linux, especially Ryoku / Arch-based desktops | Primary upstream environment: Quickshell/QML, Rust daemon, libmpv, Linux packaging; Void installation documentation is also inherited | Reference implementation for parity; not newly tested by this fork's documentation review |
+| Windows | Inherited Tauri launch path, Windows taskbar code, and media-control integration points | Planned port; no verified build, installer, minimum OS version, or parity guarantee |
+| Android | Tauri v2 dependencies and a mobile entry-point annotation, but desktop-oriented hosting and dependencies | Planned port; no verified Android build, APK, background service, or supported device list |
 
-```bash
-sha256sum -c ryotunes-1.0.1-1-x86_64.pkg.tar.zst.sha256
-```
+The original application is **audio-only**. This fork does not announce video playback or additional provider capabilities.
 
-Use the filenames for your downloaded release and continue only on `OK`.
-Quit Ryotunes completely, then replace the package in one transaction; there is
-no need to uninstall the primary QML application first:
+## Architecture and portability strategy
 
-```bash
-systemctl --user stop ryotunesd.service ryotunesd.socket
-sudo pacman -U ./ryotunes-1.0.1-1-x86_64.pkg.tar.zst
-systemctl --user daemon-reload
-systemctl --user enable --now ryotunesd.socket
-ryotunes
-```
+### What is implemented in the inherited code
 
-The package's `1:` pacman epoch orders `1:1.0.1-1` above distribution-numbered
-builds such as `2.5.1-1`; it does not mean QML is obsolete. Personal configuration
-and music are preserved. If pacman reports file conflicts, check ownership with
-`pacman -Qo /path/to/file` and back up unowned files before retrying. Do not use
-blanket `--overwrite` or bypass dependency checks with `-Rdd`.
-
-**If the legacy interface opens:** quit it, then restart socket activation:
-
-```bash
-systemctl --user restart ryotunesd.socket
-systemctl --user start ryotunesd.service
-ryotunes-cli show
-```
-
-The launcher can fall back to Tauri when the daemon socket is missing or refuses
-connections. Verify **Settings → About → Client: QUICKSHELL / QML**, the provider
-selector and Downloads sidebar rather than judging the client by its version.
-Check for updates from that QML About page.
-
-To remove Ryotunes entirely instead of updating it, quit the app and run
-`sudo pacman -R ryotunes`. This removes both packaged clients, not just Tauri;
-do not use it to remove the legacy interface while keeping QML.
-
-
----
-
-## Built for Ryoku, not merely compatible with it
-
-Ryotunes is a Linux-first desktop music application shaped around the way **Ryoku + Hyprland** actually behave.
-
-The primary interface is Quickshell / QML, connected to the Rust `ryotunesd` daemon. Rust and libmpv own playback, media state and provider integrations independently of the visible client. The older Svelte/WebKitGTK interface remains a separate legacy launch mode.
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### Native where it matters
-Audio stays in **libmpv**, outside the frontend renderer. MPRIS, media keys, tray controls, gapless playback and the active session remain native.
-
-</td>
-<td width="33%" valign="top">
-
-### Ryoku in real time
-**Follow System** consumes Ryoku's live Material-role palette. Named themes and wallpaper-derived colours retint both the main window and mini-player immediately.
-
-</td>
-<td width="33%" valign="top">
-
-### Quiet in the background
-The QML window can close while the daemon continues playback or active downloads.
-
-</td>
-</tr>
-</table>
-
-> [!NOTE]
-> Ryotunes is intentionally **audio-only**. It does not provide music-video playback.
-
----
-
-## The experience
-
-| Surface | What Ryotunes does |
-|---|---|
-| **Home** | Resume listening, remembered songs/albums/playlists, searchable shortcuts and local discovery ranking without the first-scroll jump |
-| **Search** | Songs, albums, artists and playlists with bounded incremental loading and preserved navigation state |
-| **Library** | Liked music, account playlists, persistent device playlists and local music in the same desktop flow |
-| **Radio** | Demand-driven Internet Radio directory with native libmpv live-stream playback |
-| **Now Playing** | Artwork-first playback surface with queue, metadata and lyrics access |
-| **Lyrics** | Synced lyrics with click-to-seek and mini-player follow mode |
-| **Queue** | Manual queue control plus radio / continuation behaviour |
-| **Downloads (native client)** | One-click audio downloads beside the heart, a bounded background queue, persistent history and configurable file preferences |
-| **Mini-player** | A separate compact Ryoku surface with its own exact Hyprland title and independent geometry |
-| **Integrations** | MPRIS, hardware media keys, tray, Last.fm, configurable Discord Rich Presence and optional Listen Together |
-
-### Home in the primary QML client
-
-- **Continue listening** resumes the queue restored by the daemon; reopening does not start playback automatically.
-- **Recently played** remembers songs, albums and playlists across launches. Items already saved as shortcuts are not repeated in that row.
-- **Add shortcut** lets you filter recents and your library, search the selected provider, or paste a YouTube / YouTube Music playlist link. A link is previewed with its real title and artwork before you add it. Private or unavailable playlists show an error; duplicate shortcuts are not added.
-- **Picked for you** re-ranks the selected provider's existing Home feed using local listening history, recency and artist variety. With no relevant history, it uses the provider's discovery ordering instead of claiming learned preferences. This adds no recommendation API, paid service or background training: at most 300 candidates are considered for 12 picks, only when the feed or personal data changes. Displaying additional artwork still has a memory cost.
-
----
-## Download music in the native client
-
-Click the **download arrow beside the heart** in the player to start saving the current track immediately. The icon shows progress, then a check mark when the file is saved. Clicking an active or completed download opens **Downloads** in the sidebar; failed and cancelled downloads can be retried.
-
-To save an entire album, open its **⋯ menu → Download album**. This queues all downloadable tracks in album order, including any additional pages, regardless of the track filter. It uses the same saved preferences and worker limit as single-track downloads. The confirmation reports how many tracks are in Downloads and any unavailable tracks; a queue or connection error reports partial progress rather than claiming the whole album was added. Spotify albums still use labelled YouTube matches, not Spotify audio exports.
-
-**Settings › Downloads** controls the destination folder, Original / MP3 / Opus format, artist subfolders, embedded cover art & lyrics, and simultaneous workers. The default destination is your XDG Music folder's `Ryotunes/` directory (usually `~/Music/Ryotunes`), with original audio and **one worker**. You can choose up to four workers; additional tracks wait in a queue capped at 200. Save preferences explicitly. File preferences are captured when a track is queued; changing the worker limit changes admission immediately without interrupting running jobs.
-
-The Downloads page separates the live queue from the latest 200 history records, with cancel, retry and open-folder actions. Closing the window leaves downloads running. Quitting Ryotunes terminates and reaps its downloader workers; interrupted jobs remain in history for an explicit retry after restart. Clearing history never deletes music, and existing files are never overwritten.
-
-With **Embed cover art & lyrics** on (the default), downloads embed available artwork and plain lyrics where the audio format supports them, and save matching `.jpg`/`.png` artwork plus synced `.lrc` or plain `.txt` lyrics alongside the song. Ryotunes reads local `.lrc`, embedded lyrics, then `.txt` before consulting its network cache/providers, so saved lyrics work offline. Artwork uses the track thumbnail with a name-and-artist iTunes lookup fallback; lyrics reuse the existing providers, including LRCLIB. These services receive track metadata such as title, artist, duration and provider identifiers. Missing matches produce a non-fatal history note rather than failing the audio download. Existing songs are not backfilled or overwritten; download them again to add metadata.
-
-Downloads require **yt-dlp and FFmpeg** (included in the native source package's dependencies). YouTube and public SoundCloud tracks use their source links. **Spotify uses a labelled YouTube search match**, not an export of the Spotify stream, and the matched recording may differ. Local files, live radio, DRM-protected and unavailable tracks are not downloadable. Only download music you have permission to save.
-
-
-## Ryoku integration
-
-Ryotunes does not implement a disconnected theme layer and then approximate Ryoku on top of it. The Linux build integrates with the shell directly.
-
-- **Live palette bridge** — Rust resolves Ryoku Material roles and watches Ryoku theme sources with inotify.
-- **Immediate theme updates** — no 60-second frontend palette polling loop.
-- **Compositor-owned startup geometry** — the main surface is floated, sized and centred by the Ryoku/Hyprland rule before it becomes visible.
-- **Mini-player isolation** — the main rule matches the exact title `^(Ryotunes)$`; `Ryotunes Mini` remains independent.
-- **MPRIS continuity** — Ryoku media controls remain available when the visible main UI is closed.
-- **Rollback-safe replacement packaging** — custom Ryotunes replaces only the stock Ryotunes entry points, never `ryoku-desktop`.
-
-### Skins
-
-Every colour, type face, radius and duration the chrome reads comes from one **skin**. The default, `system`, follows the Ryoku desktop live (wallpaper palette, named scheme, motion scale, decor). The `matugen` skin is the same manifest written by a matugen template from your wallpaper — on Ryoku it is one of the *Theme apps*, regenerated on every palette change. Any folder with a `skin.json` is a skin, and editing it re-paints the running app:
-
-```
-/usr/share/ryotunes/skins/<id>/        shipped: paper, ember, mist
-~/.config/ryotunes/skins/<id>/         yours (shadows a shipped id); skins/matugen is the generated one
-/usr/share/ryotunes/matugen/ryotunes.json   the matugen template
-```
-
-Pick one in *Settings › Appearance*, or **Get more skins** there — that opens [RyoStore](https://github.com/ryoku-dev/ryostore) on its *Ryotunes skins* category, and an install lands in `~/.local/share/ryoku/ryotunes-skins/<id>/`. To make your own: fork the painted palette with **New skin from current**, validate with `ryotunes-cli skin check <dir>`, and submit it to the store catalogue as `ryotunes-skins/<id>/` — the format and the checklist are in **[docs/SKINS.md](docs/SKINS.md)**.
-
-For the shell itself:
-
-**[Ryoku Arch](https://github.com/ryoku-dev/ryoku-arch)** · **[Ryoku Discord](https://discord.gg/8KjBmUEyKA)**
-
----
-
-## A small lifecycle contract with a big payoff
-
-| Situation | Behaviour |
-|---|---|
-| Main window open | The primary Quickshell / QML client is connected to the daemon |
-| Close while music or downloads are active | The daemon continues the active work |
-| Idle with no client | The daemon exits after its idle grace period |
-| Reopen | The QML client reconnects to daemon-owned state |
-| Explicit **Quit** | Playback stops, MPRIS unregisters, media state clears and backend integrations shut down |
-
-This is why the UI is a **client of playback state**, not the transport clock that owns it.
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-    R["Ryoku / Hyprland"] --> M["MPRIS · media keys · tray"]
-    R --> T["live palette + window policy"]
-
-    M --> N["ryotunesd / Rust daemon"]
-    T --> N
-
-    N --> P["native player crate"]
-    P --> MPV["libmpv · audio only"]
-
-    N --> I["YouTube · Spotify · SoundCloud · downloads"]
-    N <-->|"Unix socket RPC + events"| W["Quickshell / QML"]
-
-    W --> U["Home · Search · Library"]
-    W --> Q["Queue · Lyrics · Now Playing"]
-    W --> MINI["Ryotunes Mini"]
-
-```
-
-More detail: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
-
----
-
-## Performance is part of the product
-
-Ryotunes treats background efficiency as an architectural requirement, not a cleanup pass.
-
-- event-driven playback state instead of a permanent 100 ms global frontend transport timer;
-- daemon-owned playback and downloads independent of the visible QML window;
-- bounded artwork decode/cache paths;
-- native playback state remains authoritative across close, tray, mini-player and reopen transitions;
-- Internet Radio discovery is demand-driven — no startup fetch or permanent station polling loop.
-
-The design rules behind the interface are documented in **[docs/DESIGN.md](docs/DESIGN.md)**.
-
----
-
-## Install
-
-Ryotunes targets **x86_64 Ryoku, CachyOS and Arch-based systems**, and Void Linux (see **[docs/INSTALL-VOID.md](docs/INSTALL-VOID.md)**).
-
-The published package is **`ryotunes 1:<version>-1`**. Its permanent `epoch=1` orders it above distribution-numbered 2.x packages; filenames stay epochless. This numbering transition is not a switch from QML to Tauri.
-
-The normal user path is a **prebuilt package**. End users do not need Node, pnpm, Rust or Cargo.
-
-1. Open **[GitHub Releases](https://github.com/ryoku-dev/ryotunes/releases/latest)**.
-2. Download `ryotunes-<version>-1-x86_64.pkg.tar.zst` and its `.sha256`.
-3. Verify and install:
-
-```bash
-sha256sum -c ryotunes-<version>-1-x86_64.pkg.tar.zst.sha256
-sudo pacman -U ./ryotunes-<version>-1-x86_64.pkg.tar.zst
-```
-
-The package installs `/usr/bin/ryotunes`, `ryotunesd`, `ryotunes-cli` and the primary QML client under `/usr/share/ryotunes`. Follow the update and socket-activation instructions above when replacing an existing installation.
-
-> [!TIP]
-> An AUR `-bin` recipe lives in [`aur/`](aur/). Public AUR publication is pending; the repository does not pretend the package is available there before it actually is.
-
-Source/development setup: **[docs/INSTALL-ARCH.md](docs/INSTALL-ARCH.md)**
-
----
-
-<details>
-<summary><b>Repository map</b></summary>
+The primary Linux execution path is:
 
 ```text
-crates/
-  innertube/          YouTube Music request/model layer
-  player/             native playback core
-  listen-protocol/    shared Listen Together protocol
-  sync-server/        optional room relay
-
-client/                primary Quickshell / QML interface
-crates/ryotunesd/       playback daemon, provider RPC and downloads
-src-tauri/             legacy Tauri host
-ui/                    legacy Svelte / WebKitGTK interface
-integrations/          Ryoku / shell integration assets
-packaging/             Arch / Ryoku replacement packaging
-scripts/               diagnostics, release gates and packaging tools
-docs/                  architecture, install, design and troubleshooting
-aur/                   binary AUR recipe sources
+ryotunes launcher -> ryotunesd -> shared Rust core -> player -> libmpv
+                         ^
+                         | newline-delimited JSON requests and events
+                         v
+                 Quickshell / QML client
 ```
 
-</details>
+The alternate Tauri host embeds the Svelte frontend and calls the shared core through Tauri commands. On Linux, the current launcher uses the daemon/native client only: a failed daemon connection does not fall back to Tauri.
 
-<details>
-<summary><b>Development & validation</b></summary>
+| Area | Source and role | Portability assessment |
+| --- | --- | --- |
+| Primary UI | `client/shell.qml`, `App.qml`, pages and components; Qt Quick/QML hosted by Quickshell, with `Quickshell.Wayland` and `Ryoku.Ui.Singletons` imports | Not a standalone, platform-neutral Qt app. Quickshell, shell tokens, and window surfaces need adaptation or replacement; ordinary Qt platform support does not establish client portability. |
+| Alternate UI/host | `ui/`: Svelte 5, SvelteKit, TypeScript, Tailwind and Vite, statically built into `ui/build`; `src-tauri/`: Tauri v2 host, commands and desktop integrations | A candidate for reuse, not a selected migration. Its feature coverage differs from the QML client, and desktop plugins/window behavior need target-specific review. |
+| Shared backend | `crates/core`: `AppState`, orchestration, SQLite persistence, local library, lyrics, provider bridges and integrations; Tokio, Serde, reqwest/rustls, rusqlite and other dependencies | Candidate logic for reuse, not a certified portable crate. It still depends on playback, media controls, Discord integration, and Linux-oriented updater behavior. |
+| Host interfaces | `crates/core/src/host.rs`: `EventSink`, `JsBridge`, `LoginFlow`, and host-supplied paths | Useful existing seams. Provider JavaScript execution, interactive authentication, and event delivery still need implementations on each target. |
+| Playback | `crates/player`: `libmpv2` wrapper, dedicated event thread, audio-only playback, queue lookahead, disk cache and audio filters | Requires native libmpv and its dependency chain. Linkage, output devices, lifecycle, codecs and effects must be validated per target. Pitch shifting depends on the libmpv build's rubberband support. |
+| Providers | `crates/innertube`, `spotify`, `soundcloud`, `tidal`, and core bridge modules | Request/model/parsing logic may be reusable. Authentication, native dependencies, audio transport, service restrictions, and live behavior require separate validation. |
+| IPC | `crates/protocol` wire types; daemon `server.rs` / `methods.rs`; `crates/ryotunes-cli`; `client/Daemon.qml` | JSON contracts are reuse candidates. The current daemon and CLI use Unix sockets; daemon locking and runtime paths are OS-specific. Protocol path discovery also reads Linux `/proc`. |
+| Downloads | Daemon-owned queue/history, external yt-dlp and FFmpeg, metadata/lyrics/artwork enrichment | Not simply portable backend code: process groups, signals, Unix priority handling, hard-link publication and desktop folder opening need review or replacement. |
 
-The dependency graphs are locked. Release work is expected to pass both frontend and native gates.
+### State, storage, and desktop integration
 
-```bash
-cd ui
-pnpm install --frozen-lockfile
-pnpm check
-pnpm build
+The Linux daemon resolves data under `$XDG_DATA_HOME/dev.ryoku.ryotunes` and audio cache under `$XDG_CACHE_HOME/dev.ryoku.ryotunes/audio`, with home-directory defaults. Its application setup opens `ryotunes.sqlite`; download settings/history use `downloads.json`. The QML client separately stores UI preferences in `$XDG_CONFIG_HOME/ryotunes/client.json`. The Tauri host uses Tauri's application-data/cache resolvers instead.
 
-cd ..
-cargo fmt --all -- --check
-cargo test --workspace --locked
-cargo check --workspace --locked
-cargo tauri build --no-bundle
-```
+The normal daemon socket is `$XDG_RUNTIME_DIR/ryotunes/ryotunesd.sock`. Spotify audio currently passes from librespot into libmpv through a Unix FIFO; `crates/spotify/src/stream.rs` explicitly rejects this transport on non-Unix platforms. Authentication data, cookies, settings, local library paths, artwork and provider caches also need a target-specific storage and privacy review. Existing XDG/HOME assumptions, Unix permissions, filesystem URLs and external-process behavior must not be copied unchanged to Windows or Android.
 
-Release checklist: **[docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md)**
+Linux integrations include MPRIS/D-Bus media controls, StatusNotifierItem tray support, systemd user socket activation, Hyprland window rules, Ryoku live palette integration, and GTK/WebKitGTK authentication and JavaScript hosts. These are not portable application requirements. The daemon owns playback and active downloads independently of the visible client; equivalent lifecycle behavior is a porting goal, not a reason to reproduce systemd or a desktop daemon on mobile.
 
-</details>
+### Windows: planned approach
 
-<details>
-<summary><b>Troubleshooting</b></summary>
+The existing Tauri path is worth evaluating before choosing a replacement UI. `src-tauri/src/main.rs` invokes the Tauri application on non-Linux targets, and `src-tauri/src/taskbar.rs` contains Windows thumbnail-toolbar integration. These are inherited implementation points, **not tested Windows support**. Core media controls use souvlaki, but the shared-core path currently supplies no Windows window handle, so media integration needs explicit validation.
 
-Start with **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
+Windows work must investigate:
 
-For a useful bug report, include:
+- Building selected compatible Rust packages and native dependencies with a validated Windows toolchain rather than assuming the Unix-oriented workspace builds as a whole.
+- Reusing/adapting the Svelte/Tauri interface, or another validated UI host, while preserving QML-era features, skins and design. Running the current Quickshell shell unchanged is not the plan.
+- Retaining libmpv if a reproducible, license-reviewed Windows build can meet playback requirements; otherwise evaluating an audio abstraction and alternative engine without promising identical codec/effect behavior.
+- Replacing Unix socket/locking and Spotify FIFO transport where needed. Windows named pipes or an in-process host are options requiring design and security review, not implemented decisions.
+- Adapting system media controls, tray, launch behavior, authentication/browser callbacks and window management instead of carrying over MPRIS, systemd or Hyprland.
+- Resolving Windows application-data/cache locations, Unicode paths, file URLs, permissions, local-library access and download publication safely.
+- Packaging the app, libmpv/native libraries and any downloader dependencies; validating runtime discovery, updates, signing and redistribution obligations. If Tauri is retained, its Windows C++ build-tool and WebView2 requirements also apply.
 
-- Ryoku / Hyprland version
-- distro and kernel
-- Wayland/display-server context
-- GPU setup
-- steps to reproduce
-- bundled diagnostics output when relevant
+### Android: planned approach
 
-</details>
+Desktop QML, Quickshell, the existing daemon, systemd activation, and Linux desktop APIs are not an Android application architecture. Tauri v2 supports Android at the framework level, but that does not make this application's native libraries or desktop plugins Android-compatible.
 
----
+Options requiring validation include a mobile-adapted Svelte/Tauri frontend with native plugins, or an Android-native interface connected to compatible Rust components through JNI/FFI. Neither is selected. A libmpv-based Android engine versus an Android-native playback engine must be assessed against stream support, effects, lifecycle, resource use and licensing.
+
+Android work must investigate:
+
+- SDK/NDK, Rust targets, native ABIs, reproducible builds, and which backend components can actually compile and run.
+- Touch navigation, responsive layouts and accessibility while preserving the original visual identity, artwork, themes and feature intent.
+- A platform-appropriate playback service, media session, foreground-service behavior, notifications and lock-screen controls, including audio focus, headphone/disconnection events and interruption recovery.
+- Activity/service lifecycles and background limits; keeping playback independent of the visible activity without assuming desktop process lifetimes or IPC. In-process bindings and Android service interfaces are candidates.
+- App-private configuration/cache and protected credentials; shared music and downloads through appropriate MediaStore or Storage Access Framework access. Handle content URIs and request only permissions required by the selected access method and Android version, rather than treating every document as a normal path.
+- Replacing desktop authentication assumptions and validating provider flows, playlists, lyrics, downloads and offline local playback individually.
+- APK packaging and, if a distribution channel requires it, an Android App Bundle, with signing, native libraries, source availability and license notices reviewed before release.
+
+Reference guidance: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/), [Tauri v2 mobile support and plugin limitations](https://v2.tauri.app/blog/tauri-20/), [Android background playback](https://developer.android.com/media/media3/session/background-playback), and [Android document/storage access](https://developer.android.com/training/data-storage/shared/documents-files). These describe platform capabilities, not completed Ryotune-Omni work.
+
+## Feature compatibility
+
+**Legend:** "Existing" means implementation is present in the inherited source, not that it was executed in this review. "Planned" means a parity objective; "Investigate" identifies an unresolved implementation or platform constraint. **No Windows or Android feature below is verified working.**
+
+| Feature | Existing upstream functionality in this checkout | Windows goal | Android goal / investigation |
+| --- | --- | --- | --- |
+| Discovery and search | Home feeds, songs/albums/artists/playlists, incremental results, shortcuts and local history-based recommendations | Planned parity | Planned; adapt navigation and bounded loading |
+| Music providers | YouTube/YouTube Music, Spotify, SoundCloud and TIDAL provider paths | Planned; investigate auth and native/audio transport | Planned; investigate auth, native compatibility and service restrictions |
+| Playback and audio controls | Native audio-only libmpv, seek/volume, shuffle/repeat, queue continuation and audio effects; behavior varies by provider | Planned; validate libmpv, filters and output | Investigate engine and effects parity |
+| Queue, playlists and favorites | Queue editing, provider likes/saves, persistent device playlists, playlist import/export | Planned parity | Planned; adapt file import/export and interactions |
+| Local library and metadata | Local-folder indexing, metadata and artwork handling | Planned; paths and access need adaptation | Planned; investigate URI-based media access and permissions |
+| Album/playlist artwork | Provider/local artwork, caches, device-playlist collages and custom covers | Planned parity | Planned; validate memory/cache costs |
+| Lyrics | Plain and synchronized lyrics, timing/seek UI, local sidecar/embedded lyrics and network providers | Planned parity | Planned; provider availability and mobile presentation need validation |
+| Downloads and offline files | Persistent queue/history, format preferences, metadata and companion artwork/lyrics; downloaded/local files can be used offline | Investigate downloader packaging, process control and filesystem behavior | Investigate mobile downloader, background execution, storage and permissions |
+| Themes, skins and customization | Light/dark, Ryoku Follow System, skin manifests, matugen integration and mini-player styling | Planned identity/skins; replace Linux shell theme coupling | Planned identity/skins; investigate mobile theme mapping |
+| History and personalization | Recent listening, shortcuts, local Home ranking and listening statistics | Planned parity | Planned parity; lifecycle and persistence need validation |
+| Desktop/background controls | Daemon-owned playback/downloads, mini-player, tray, media keys and MPRIS; inherited Windows host code also exists | Investigate Windows media controls, tray and mini-player parity | Investigate foreground media service, notifications, audio focus and lock-screen controls |
+| External integrations | Last.fm scrobbling, Discord Rich Presence, optional Listen Together relay | Investigate credentials, host integration and lifecycle | Investigate applicability; desktop integration may have no mobile equivalent |
+| Internet Radio | Demand-driven station discovery and native live audio playback | Planned; validate engine/network behavior | Planned; validate engine and background playback |
+| Installation and updates | Linux package/release scripts and pacman/xbps-oriented update handling | New packaging/update strategy required | New packaging/update strategy required |
+
+### Provider and download limits
+
+- Feature availability depends on account state, region, subscription, provider responses and service terms; integrations are not service guarantees. Spotify sign-in includes a Premium eligibility gate.
+- TIDAL integration requires configured client credentials and sign-in. The implementation explicitly refuses protected stream assets; this fork does not promise DRM bypass or playback of every catalogue item.
+- Current downloads use yt-dlp and FFmpeg. YouTube and public SoundCloud sources are supported paths; Spotify downloads use a **labelled YouTube search match**, not exported Spotify audio or a guarantee of the same recording.
+- Downloads do not establish unrestricted offline access to any provider catalogue. Local files, live radio, protected or unavailable items are not downloadable through that workflow. Save only content you are authorized to download, in accordance with applicable law and service terms.
+- Accounts, lyrics, artwork, scrobbling and download metadata lookups can involve third-party services. Preserve clear disclosures and protect credentials when adapting these features.
+
+## Roadmap
+
+All items below are planned work. This initial documentation review is not a completed architecture, security, licensing or compatibility audit.
+
+### Phase 1 - Repository and licensing audit
+
+- [ ] Review the upstream architecture and dependency graph.
+- [ ] Identify platform-specific components and native-library blockers.
+- [ ] Establish license compliance and attribution requirements, including distributed dependency builds.
+- [ ] Define and test a baseline of existing functionality for parity tracking.
+
+### Phase 2 - Portability architecture
+
+- [ ] Separate reusable business logic from OS-specific behavior where needed.
+- [ ] Define host interfaces, storage boundaries and platform abstractions.
+- [ ] Evaluate UI and audio-engine alternatives with small technical prototypes.
+- [ ] Establish automated tests and target-specific build validation.
+
+### Phase 3 - Windows port
+
+- [ ] Validate the Windows toolchain and native dependencies.
+- [ ] Adapt backend dependencies, authentication, IPC and Spotify audio transport.
+- [ ] Integrate and test the audio engine and Windows media controls.
+- [ ] Establish application-data handling, packaging and update behavior.
+- [ ] Verify and publish feature compatibility results.
+
+### Phase 4 - Android port
+
+- [ ] Validate the Android SDK/NDK toolchain and supported ABIs.
+- [ ] Integrate compatible Rust/native components and the selected mobile UI.
+- [ ] Implement and test mobile audio and background playback.
+- [ ] Adapt storage, permissions, lifecycle, audio focus and media controls.
+- [ ] Verify and publish feature compatibility results.
+
+### Phase 5 - Quality and maintenance
+
+- [ ] Test playback reliability, resource usage, interruptions and long sessions.
+- [ ] Verify provider integrations and inherited functionality on each target.
+- [ ] Document known limitations and reproducible test results.
+- [ ] Establish fork-specific releases, issue reporting and contribution procedures.
+- [ ] Track upstream changes and maintain the fork with minimal unnecessary divergence.
+
+## Building, installation, and releases
+
+### Windows and Android
+
+**Platform-specific setup, build and installation instructions are pending successful port validation.** There are no verified Ryotune-Omni Windows executables, installers or Android APKs to recommend. No target build commands are provided here because none were executed successfully during this review.
+
+The existing Tauri configuration, mobile annotation, DLL ignore entries and Windows code are starting points for investigation, not installation instructions. No minimum Windows/Android version or supported CPU/ABI list has been established.
+
+### Inherited Linux development reference
+
+The existing build system is a Cargo workspace plus a separate pnpm project in `ui/`. CI declares stable Rust, Node 22 and pnpm 11; the Spotify crate uses Rust edition 2024, so the older `rust-version` declared by the Tauri package alone is not a sufficient workspace toolchain guide. Linux builds require native dependencies including GTK/WebKitGTK and libmpv; the QML runtime additionally requires Quickshell and Ryoku modules.
+
+Use the following existing documents and executable configurations as **upstream-oriented references**, not verified Windows/Android instructions:
+
+- [Arch/Ryoku setup and source builds](docs/INSTALL-ARCH.md) and [Void installation](docs/INSTALL-VOID.md).
+- [Contributing](CONTRIBUTING.md), [CI workflow](.github/workflows/ci.yml), [Cargo workspace](Cargo.toml), [frontend scripts](ui/package.json), and [Arch dependency/build recipe](packaging/arch/PKGBUILD).
+- [Release checklist](docs/RELEASE-CHECKLIST.md) and [release checks](scripts/release-check.sh).
+- [Architecture](docs/ARCHITECTURE.md), [design language](docs/DESIGN.md), [skins](docs/SKINS.md), and [troubleshooting](docs/TROUBLESHOOTING.md).
+
+These documents contain historical Linux assumptions and some stale lifecycle descriptions. Consult current code when they conflict: the Linux launcher has no Tauri fallback, and the daemon's default idle grace is 60 seconds, subject to activity and subscribers. Do not run separate playback hosts against the same application data.
+
+Existing test sources include Rust unit tests, Node-run `ui/src/lib/*.check.ts` regressions, and separate QtTest files in `client/tests`. Linux CI separates an environment-sensitive real-libmpv test from the main suite; QML tests are not currently a CI job. These are inherited checks, not proof of target-platform compatibility.
+
+**Release safety:** The inherited release workflow is designed to version, tag and publish Linux packages on default-branch pushes. Update/self-install code and several links still target upstream infrastructure. Fork-specific publishing, application identity and update routing require review before distributing binaries; existing Linux packages must not be presented as Windows or Android releases. No build/test success is claimed by this README.
+
+## Licensing and attribution
+
+### Project license and provenance
+
+The root [LICENSE](LICENSE) contains the GNU GPL version 3 text. The workspace manifest explicitly declares **`GPL-3.0-or-later`**, and the verified Ryotunes upstream manifest and [UPSTREAM.md](UPSTREAM.md) confirm that grant. Ryotune-Omni retains this licensing basis for the inherited application and derivative work; this README does not relicense third-party components.
+
+Attribution must include the original Ryotunes/Ryoku contributors and the earlier **[LiMusic project by SimoHypers](https://github.com/SimoHypers/limusic)** described in `UPSTREAM.md`. Additional Spotify implementation provenance is recorded in [crates/spotify/README.md](crates/spotify/README.md) and source headers: code was adapted from **[Sonora](https://github.com/sonorahq/sonora)**, historically `nolight132/sonora`, commit `695242e`, under GPL-3.0-or-later. Preserve those notices and the original authors' credits.
+
+### What distribution requires
+
+In plain English, applicable GPL obligations include:
+
+- Preserve copyright, attribution, licensing and warranty notices, and retain the required license text. Clearly identify modifications rather than presenting the fork as the original work.
+- Distribute covered derivative work under the applicable GPL terms, preserving recipients' rights to use, study, modify and redistribute it. Do not add incompatible restrictions.
+- When conveying binaries, meet GPL section 6's corresponding-source requirements through an applicable compliant distribution method. Source must correspond to the shipped build and include required build/install scripts and modifications, not merely a link to unrelated upstream HEAD.
+- Where GPLv3's User Product provisions apply, provide required Installation Information so recipients can install and run modified versions.
+- Preserve required legal notices in interfaces and distributions, and satisfy each bundled dependency's own license requirements.
+
+This is a summary, not legal advice or a compliance certification. Consult the actual licenses before publishing. No license files were changed for this README.
+
+### Third-party components are not all GPL-3.0-or-later
+
+The initial review identified these distinct licensing considerations; this is **not a complete dependency/license inventory**:
+
+| Component | Verified licensing information / distribution review |
+| --- | --- |
+| `aur/` packaging material | [aur/LICENSE](aur/LICENSE) is BSD Zero Clause, with a 2026 ashmitvoid copyright notice; do not replace it with the application license. |
+| Spotify code adapted from Sonora | GPL-3.0-or-later, with provenance above and in the crate's own documentation. |
+| Pinned librespot fork | MIT; its license retains Paul Lietar's copyright and notice requirements. The actual source revision is pinned in `Cargo.toml` / `Cargo.lock`. |
+| `libmpv2` 4.1.0 and `libmpv2-sys` 4.0.1 | Registry metadata declares LGPL-2.1 for these Rust bindings; do not confuse the wrapper's license with the native engine's. |
+| Native mpv/libmpv | The [mpv copyright file](https://github.com/mpv-player/mpv/blob/master/Copyright) describes default GPL-2.0-or-later and an LGPL configuration excluding GPL-only files. Review the exact build and linked libraries. |
+| FFmpeg | [Licensing depends on build configuration and enabled components](https://www.ffmpeg.org/legal.html); a bundled binary needs its own source/notice and compatibility review. |
+| yt-dlp | Source is under the Unlicense, but [bundled release executables can have additional licensing obligations](https://github.com/yt-dlp/yt-dlp#licensing), including GPLv3+ code. Review the artifact, not just the source repository license. |
+
+Before shipping, inventory the resolved Rust/frontend dependencies, native codecs/libraries, Qt/Quickshell if retained, fonts, icons and skins. Verify license compatibility, required notices and source/relinking obligations for the chosen binaries and distribution channel. No blanket legal guarantee is made for Windows installers or Android packages.
+
+Software licensing does not grant ownership of music, provider accounts, service APIs, artwork or trademarks, and does not imply upstream endorsement. Third-party names and trademarks remain the property of their respective owners. Ryotune-Omni is not affiliated with, authorized by, sponsored by, or endorsed by YouTube or Google; YouTube and YouTube Music are trademarks of Google LLC. Provider terms and applicable law remain separate obligations.
+
+## Relationship with upstream
+
+- **Direct upstream: [Ryotunes](https://github.com/Ryoku-dev/ryotunes)** - the inherited Linux-first application and its implementation baseline.
+- **Ryoku: [Ryoku-dev/ryoku](https://github.com/Ryoku-dev/ryoku)** - the original desktop/distribution environment and shell/design integration. Older `ryoku-arch` repository links redirect here.
+- **Earlier origins:** LiMusic and Sonora, credited in the licensing section and retained provenance documentation.
+
+Ryotune-Omni is maintained independently. These upstream projects remain authoritative for their own codebases, features, development and contribution guidelines. Their releases, branding and community channels do not represent this fork.
+
+The goal is to follow relevant upstream fixes and improvements while diverging only where Windows/Android support or maintainability requires it. Port-specific decisions and parity gaps should be documented so upstream work can be integrated without misrepresenting compatibility.
 
 ## Contributing
 
-Contributions are welcome when they preserve the product contracts that make Ryotunes feel native on Ryoku.
+Contributions are welcome in:
 
-Start with **[CONTRIBUTING.md](CONTRIBUTING.md)**. Changes touching playback lifecycle, theme integration, Home rendering, background behaviour or replacement packaging deserve explicit regression testing.
+- Portability and dependency audits, including native-library and license inventories.
+- Rust backend compatibility and isolation of platform-specific functionality.
+- Windows hosting, IPC, media controls, paths and packaging.
+- Android native integration, mobile UI, storage, permissions and service lifecycle.
+- Audio engines, authentication, downloads and external integrations.
+- Reproducible tests, playback/resource measurements, bug reports, documentation and feature-parity tracking.
 
----
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), keeping in mind that its desktop-host and setup instructions describe the inherited Linux application. Preserve its audio-only, backend-owned playback, explicit-Quit, event-driven update and restrained-design contracts where applicable; document target-specific differences.
 
-## Upstream, license & independence
+Prefer small, reviewable contributions with explicit scope, alternatives, limitations and verification results. Discuss architectural choices in a focused proposal before attempting a broad framework migration. A successful compile alone does not establish playback or feature parity.
 
-Ryotunes is a **GPL-3.0-or-later modified work derived from [SimoHypers/LiMusic](https://github.com/SimoHypers/limusic)**.
+At this documentation update the fork's GitHub Issues and Discussions were disabled; no dedicated fork community channel is advertised. Use the repository's available pull-request mechanism for contributions/proposals, and use a fork issue tracker for reports if one is enabled later. Do not send fork-specific port failures to upstream as confirmed upstream bugs. Reports should identify the commit, OS/device/toolchain, provider/account prerequisites, reproduction steps, expected/actual behavior and checks actually run. Remove credentials and personal data from logs.
 
-The project retains transparent upstream attribution while pursuing its own Ryoku-specific product direction, interface, lifecycle, performance architecture and packaging model. See **[UPSTREAM.md](UPSTREAM.md)** for the detailed note.
+## Disclaimer and acknowledgments
 
-Ryotunes is independently developed and is **not affiliated with, authorized by, sponsored by, or endorsed by YouTube or Google**. YouTube and YouTube Music are trademarks of Google LLC.
+Ryotune-Omni is experimental software, provided under the warranty and liability terms of its licenses. Port feasibility, feature parity, provider availability, release dates and distribution approval are not guaranteed.
 
-Distributed under **[GPL-3.0-or-later](LICENSE)**.
-
----
-
-<div align="center">
-
-### Music, shaped for the Ryoku desktop.
-
-<sub>Rust · Quickshell / QML · libmpv · Hyprland</sub>
-
-</div>
+Thanks to the Ryotunes, Ryoku, LiMusic and Sonora authors and contributors, and to the maintainers of Rust, Tauri, Svelte, Qt/Quickshell, mpv, librespot, FFmpeg, yt-dlp and the other projects on which this work depends. Their work remains credited to its original authors.
