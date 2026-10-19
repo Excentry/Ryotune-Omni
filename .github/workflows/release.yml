@@ -1,0 +1,236 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Ryotune-Omni v0 tag to validate (never publishes while no target platform is enabled)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate tag and release readiness
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate the tag
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            tag="$INPUT_TAG"
+          else
+            tag="$REF_NAME"
+          fi
+
+          if [[ ! "$tag" =~ ^v0\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error title=invalid release tag::'$tag' is not a Ryotune-Omni release tag. During initial development releases live on the v0 line: vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-PRERELEASE (for example v0.1.0-alpha.1). See docs/RELEASING.md."
+            exit 1
+          fi
+
+          if ! commit="$(git rev-parse -q --verify "refs/tags/$tag^{commit}")"; then
+            echo "::error title=unknown release tag::tag '$tag' does not exist. Create it on a commit of $DEFAULT_BRANCH after scripts/sync-version.sh has synced every manifest, then push the tag."
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$commit" "origin/$DEFAULT_BRANCH"; then
+            echo "::error title=tag outside release history::'$tag' points at a commit that is not reachable from $DEFAULT_BRANCH. Ryotune-Omni releases may only be tagged from the main development line."
+            exit 1
+          fi
+
+          version="${tag#v}"
+          workspace="$(git show "$tag:Cargo.toml" | sed -n 's/^version = "\(.*\)"$/\1/p' | head -1)"
+          if [[ "$workspace" != "$version" ]]; then
+            echo "::error title=version metadata mismatch::tag '$tag' but the tagged tree carries workspace version '$workspace'. Run scripts/sync-version.sh $version --release, commit, and tag that commit."
+            exit 1
+          fi
+
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Determine enabled release targets
+        id: targets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          targets='{"include":[]}'
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          if [[ "$(jq '[.include[]] | length' <<<"$targets")" -gt 0 ]]; then
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            if [[ "$EVENT_NAME" == "push" ]]; then
+              echo "::error title=no enabled release target::no platform build target is enabled for Ryotune-Omni yet, so a release would carry no application artifact. Refusing to publish. Enable a deliberately validated target in .github/workflows/release.yml (see docs/RELEASING.md), or use the manual workflow trigger to run the non-publishing validation path."
+              exit 1
+            fi
+            echo "::notice title=non-publishing validation::no platform build target is enabled; this run validates the tagged tree and publishes nothing."
+          fi
+
+  validate:
+    name: Validate the tagged tree
+    needs: preflight
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libmpv-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Frontend dependencies
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend checks
+        working-directory: ui
+        run: pnpm check && pnpm build
+
+      - name: Rust format
+        run: cargo fmt --all -- --check
+
+      - name: Rust tests
+        run: cargo test --workspace --locked -- --skip mpv_keeps_the_gain_through_pitch_changes_and_failures
+
+      - name: Real libmpv regression
+        timeout-minutes: 2
+        run: |
+          set +e
+          timeout 30s cargo test --locked -p player mpv_keeps_the_gain_through_pitch_changes_and_failures -- --nocapture --test-threads=1
+          status=$?
+          set -e
+
+          if [ "$status" -eq 124 ]; then
+            echo "::warning title=libmpv integration timeout::The real-libmpv pitch rollback test timed out on this GitHub runner. Deterministic player tests passed; the integration case is environment-sensitive and tolerated exactly as in CI."
+            exit 0
+          fi
+
+          exit "$status"
+
+      - name: Release guard
+        env:
+          RYOTUNES_STATIC_ONLY: "1"
+        run: ./scripts/release-check.sh
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: [preflight, validate]
+    if: needs.preflight.outputs.has_targets == 'true'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix: ${{ fromJSON(needs.preflight.outputs.targets) }}
+    steps:
+      - name: No target implementation
+        run: |
+          echo "::error title=missing build implementation::release target '${{ matrix.target }}' has no build steps in .github/workflows/release.yml. A target may only be enabled together with its real, verified build implementation."
+          exit 1
+
+  publish:
+    name: Publish the GitHub release
+    needs: [preflight, validate, build]
+    if: needs.preflight.outputs.has_targets == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Fetch validated artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-assets-*
+          merge-multiple: true
+          path: dist
+
+      - name: Verify artifact set
+        env:
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if ! find dist -type f -size +0c | grep -q .; then
+            echo "::error title=empty artifact set::release '$TAG' has no non-empty build artifacts; an application release requires at least one validated distributable."
+            exit 1
+          fi
+          (
+            cd dist
+            find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+            sha256sum -c --quiet SHA256SUMS.txt
+          )
+
+      - name: Source tarball
+        env:
+          TAG: ${{ needs.preflight.outputs.tag }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          name="ryotune-omni-$VERSION"
+          git archive --format=tar --prefix="$name/" "$TAG" | gzip -n > "dist/$name.tar.gz"
+          ( cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256" )
+
+      - name: Release notes
+        env:
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: python3 scripts/omni-release-notes.py "$TAG" > dist/NOTES.md
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          assets=(dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --clobber
+            gh release edit "$TAG" --draft=false --prerelease=true --title "Ryotune-Omni $TAG" --notes-file dist/NOTES.md
+          else
+            gh release create "$TAG" "${assets[@]}" --verify-tag --prerelease --title "Ryotune-Omni $TAG" --notes-file dist/NOTES.md
+          fi

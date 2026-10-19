@@ -129,16 +129,15 @@ The [compatibility reference](COMPATIBILITY.md) contains the feature matrix, pro
 
 ## Versioning and releases
 
-Ryotune-Omni uses its own release ledger, separate from Ryotunes. The inherited `1.2.3` manifests and `v1.*` changelog entries describe the source baseline; they are not Ryotune-Omni releases.
+Ryotune-Omni uses its own release ledger, separate from Ryotunes. The inherited `1.2.3` manifests and `v1.*` changelog entries describe the source baseline; they are not Ryotune-Omni releases. The release process and tag-triggered validation are defined in [RELEASING.md](RELEASING.md).
 
-- Use SemVer and tags in the form `omni-vMAJOR.MINOR.PATCH`; never reuse or recreate upstream tags.
-- The first tag is `omni-v0.1.0`, created only for the first validated Ryotune-Omni build.
-- Increment patch for compatible fixes, minor for compatible features, and major for breaking changes or required migration.
+- Use SemVer and tags in the form `vMAJOR.MINOR.PATCH`; while pre-1.0, releases stay on the `v0.*` line. Never reuse or recreate upstream tags.
+- Reserve `v0.1.0` for the first validated Ryotune-Omni release; the current release workflow refuses to publish until a validated build target is enabled.
+- Increment patch for compatible fixes and minor for compatible features while pre-1.0. Follow `docs/RELEASING.md` for prereleases and future 1.0 policy.
 - Documentation-only changes stay under `Unreleased`; they do not create tags or releases.
-- Create a tag only through an explicitly reviewed Ryotune-Omni release. A tag must identify the exact source and artifacts for that release.
-- `scripts/next-omni-version.sh [major|minor|patch]` previews the next version from `omni-v*` tags. With no Omni tags, it returns `0.1.0`.
+- Create tags only through an explicitly reviewed Ryotune-Omni release. A tag must identify the exact source and artifacts for that release.
 
-The existing application manifests, self-updater, package metadata, and `scripts/sync-version.sh` still belong to the inherited Ryotunes distribution. Do not use them to publish an Omni release until product identity, update routing, package targets, and runtime support have been separated and validated.
+The existing application manifests, self-updater, and package metadata still carry inherited Ryotunes identity. The release workflow validates synchronized versions and publishes nothing until a real, validated target is enabled. Do not enable a target until package identity, update routing, and runtime support are separated and validated.
 
 ### Windows and Android
 
@@ -161,7 +160,7 @@ These documents contain historical Linux assumptions and some stale lifecycle de
 
 Existing test sources include Rust unit tests, Node-run `ui/src/lib/*.check.ts` regressions, and separate QtTest files in `client/tests`. Linux CI separates an environment-sensitive real-libmpv test from the main suite; QML tests are not currently a CI job. These are inherited checks, not proof of target-platform compatibility.
 
-> **Release safety:** The upstream Ryotunes release workflow is archived in `.github/legacy-workflows/ryotunes-release.yml` and is not the Ryotune-Omni release process. No Omni release automation or update route is available yet. Do not publish Omni artifacts until package identity, updater routing, signing, and compatibility gates are defined and verified.
+> **Release safety:** The upstream Ryotunes workflow is archived in `.github/legacy-workflows/ryotunes-release.yml`. The active Ryotune-Omni tag-triggered workflow validates releases but refuses to publish until at least one platform build target is implemented and validated. See [RELEASING.md](RELEASING.md).
 
 ## Licensing and attribution
 
