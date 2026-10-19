@@ -36,6 +36,9 @@ lofty = "0.22.2"
 url = "2"
 sha2 = "0.10"
 tempfile = "3"
+# Void self-update: unpack the release .pkg.tar.zst so it can be repacked with xbps-create.
+tar = { version = "0.4", default-features = false }
+ruzstd = "0.9"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
