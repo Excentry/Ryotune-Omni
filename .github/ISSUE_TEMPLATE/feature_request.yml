@@ -1,7 +1,7 @@
 name: Feature request
-description: Propose a change that improves the listening or Ryoku desktop experience
+description: Propose an improvement for Ryotune-Omni
 title: "[Request] "
-labels: ["enhancement"]
+labels: ["type: feature", "status: needs-triage"]
 body:
   - type: textarea
     id: usecase
@@ -10,11 +10,23 @@ body:
       description: Start with the user problem rather than the implementation.
     validations:
       required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target platform
+      options:
+        - Windows
+        - Android
+        - Linux reference
+        - Cross-platform
+        - Other
+    validations:
+      required: true
   - type: textarea
     id: idea
     attributes:
       label: Proposed behaviour
-      description: Explain how you would expect it to work in Ryotunes.
+      description: Explain how you would expect it to work in Ryotune-Omni.
     validations:
       required: true
   - type: textarea

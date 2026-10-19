@@ -1,12 +1,12 @@
 name: Bug report
-description: Something in Ryotunes is broken or behaves unexpectedly
+description: Report a problem in Ryotune-Omni
 title: "[Bug] "
-labels: ["bug"]
+labels: ["type: bug", "status: needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting it. A few environment details usually make Linux/WebKit issues much faster to reproduce.
+        Report the platform and build you tested. Remove credentials and personal data from logs.
   - type: textarea
     id: problem
     attributes:
@@ -25,19 +25,28 @@ body:
         3. Close …
     validations:
       required: true
-  - type: input
-    id: version
+  - type: dropdown
+    id: platform
     attributes:
-      label: Ryotunes version
-      placeholder: "2.2.0"
+      label: Target platform
+      options:
+        - Windows
+        - Android
+        - Linux reference
+        - Other / not platform-specific
     validations:
       required: true
   - type: input
+    id: version
+    attributes:
+      label: Ryotune-Omni version or commit
+      placeholder: "Development build, commit SHA, or omni-v0.1.0"
+  - type: input
     id: system
     attributes:
-      label: System
-      description: Distro, desktop/shell, display server and GPU if relevant.
-      placeholder: "Ryoku on CachyOS, Hyprland/Wayland, AMD iGPU + NVIDIA dGPU"
+      label: Platform and version
+      description: Include OS/device and relevant runtime versions.
+      placeholder: "Windows 11 24H2, WebView2 version; Android 15, Pixel 8"
     validations:
       required: true
   - type: textarea

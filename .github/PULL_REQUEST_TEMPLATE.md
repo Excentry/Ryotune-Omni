@@ -1,39 +1,31 @@
+<!-- Use title format: type(scope): short description. See CONTRIBUTING.md#title-format. -->
+
 ## What changed
 
-<!-- Concrete behaviour, architecture, UI or packaging changes. -->
+<!-- What changed, and what problem does it solve? -->
 
-## Why
+## Scope and impact
 
-<!-- What user problem, regression or maintenance issue does this solve? -->
-
-## Surface area
-
-<!-- Home / Search / Library / playback / mini-player / theming / lifecycle / packaging / provider / docs -->
+- **Areas:** <!-- e.g. playback, provider, UI, Windows, Android, docs -->
+- **Platforms affected and tested:** <!-- Include OS/version, or say not runtime-tested. -->
+- **Behavior or compatibility impact:** <!-- Include user-visible changes or known limitations. -->
+- **Breaking change or migration:** <!-- None, or describe required steps. -->
 
 ## Validation
 
-- [ ] `./scripts/release-check.sh`
-- [ ] `cd ui && pnpm check && pnpm build`
-- [ ] `cargo fmt --all -- --check`
-- [ ] relevant Rust/frontend tests
-- [ ] affected Ryoku/Hyprland lifecycle tested when applicable
-
-### Regression contracts
-
-Check any that this PR touches:
-
-- [ ] background WebKit hibernation
-- [ ] MPRIS / tray / explicit Quit semantics
-- [ ] stable Home DOM / scrolling
-- [ ] live Ryoku theme bridge
-- [ ] main vs mini-player window rules
-- [ ] replacement-package rollback / `ryoku-desktop` safety
-- [ ] steady-state CPU / frontend timer behaviour
+- **Checks/scenarios run:** <!-- Include commands and results. -->
+- **Not run:** <!-- Explain why, or write "None." -->
 
 ## Evidence
 
-<!-- Screenshots, logs, performance measurements, package ownership output, or migration notes. -->
+<!-- Add screenshots for UI changes or useful logs/measurements. Remove credentials and personal data. -->
 
-## Follow-up
+## Risks and follow-up
 
-<!-- Optional: intentionally deferred work. -->
+<!-- Note recovery/rollback needs, dependencies, or deferred work. Write "None" if not applicable. -->
+
+## Checklist
+
+- [ ] Relevant regression tests are covered, or missing checks are explained above.
+- [ ] Documentation and compatibility claims match the evidence.
+- [ ] No secrets or unrelated changes are included.
