@@ -25,8 +25,8 @@ def req(ok, msg):
 cargo = tomllib.loads(read('Cargo.toml'))
 lock = tomllib.loads(read('Cargo.lock'))
 version = cargo['workspace']['package']['version']
-req(re.fullmatch(r'1\.(0|[1-9][0-9]*)\.[0-9]', version),
-    'workspace version is not a v1 release (1.<minor>.<single-digit patch>)')
+req(re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?', version),
+    'workspace version is not SemVer MAJOR.MINOR.PATCH with an optional pre-release')
 locked = {package['name']: package['version'] for package in lock['package']}
 for member in cargo['workspace']['members']:
     manifest = tomllib.loads(read(f'{member}/Cargo.toml'))['package']
@@ -46,7 +46,7 @@ appstream = ET.fromstring(read('packaging/linux/dev.ryoku.ryotunes.metainfo.xml'
 req(appstream.find('releases/release').get('version') == version,
     'AppStream release version does not match workspace')
 arch = read('packaging/arch/PKGBUILD')
-req(re.search(rf'^pkgver={re.escape(version)}$', arch, re.M),
+req(re.search(rf'^pkgver={re.escape(version.replace("-", ""))}$', arch, re.M),
     'Arch package version does not match workspace')
 req(re.search(r'^pkgrel=1$', arch, re.M), 'release asset contract requires pkgrel=1')
 req(re.search(r'^epoch=1$', arch, re.M),

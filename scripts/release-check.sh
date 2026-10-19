@@ -8,8 +8,9 @@ say() { printf '[%s] %s\n' "$1" "$2"; }
 
 say check 'release identity'
 # One version everywhere: the Cargo workspace is the source (scripts/sync-version.sh writes it).
-ver="$(sed -n 's/^version = "\([0-9.]*\)"/\1/p' Cargo.toml | head -1)"
-[[ -n "$ver" ]] || { say FAIL 'workspace version missing from Cargo.toml'; fail=1; }
+ver="$(sed -n 's/^version = "\([0-9A-Za-z.+-]*\)"$/\1/p' Cargo.toml | head -1)"
+[[ "$ver" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]] \
+  || { say FAIL 'workspace version missing or not SemVer in Cargo.toml'; fail=1; }
 grep -q "\"version\": \"$ver\"" src-tauri/tauri.conf.json || { say FAIL "Tauri version is not $ver"; fail=1; }
 grep -q "\"version\": \"$ver\"" ui/package.json || { say FAIL "UI version is not $ver"; fail=1; }
 grep -q '"identifier": "dev.ryoku.ryotunes"' src-tauri/tauri.conf.json || { say FAIL 'unexpected application identifier'; fail=1; }

@@ -22,8 +22,8 @@ cd "$root"
 ver="${1:-}"
 release=0
 [[ "${2:-}" == "--release" ]] && release=1
-[[ "$ver" =~ ^1\.(0|[1-9][0-9]*)\.[0-9]$ ]] || {
-  echo "sync-version: '$ver' is not a v1 release version (1.<minor>.<digit>)" >&2
+[[ "$ver" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]] || {
+  echo "sync-version: '$ver' is not a SemVer version (MAJOR.MINOR.PATCH[-PRERELEASE])" >&2
   exit 2
 }
 
@@ -35,9 +35,11 @@ sed -i 's/"version": "[0-9][0-9.]*"/"version": "'"$ver"'"/' ui/package.json
 # The native QML client reads its own APP version from this file at runtime
 # (Quickshell.shellDir + '/version'); it ships inside /usr/share/ryotunes/client.
 printf '%s\n' "$ver" > client/version
-# Arch package: pkgver tracks the version, pkgrel is the release-asset contract's
+# Arch package: pkgver tracks the version with hyphens stripped (makepkg forbids
+# them, e.g. 0.1.0-alpha.1 -> 0.1.0alpha.1), pkgrel is the release-asset contract's
 # fixed 1, epoch=1 is permanent so 1:X.Y.Z outranks the installed 2.x.
-sed -i 's/^pkgver=.*/pkgver='"$ver"'/; s/^pkgrel=.*/pkgrel=1/' packaging/arch/PKGBUILD
+pkgver="${ver//-/}"
+sed -i 's/^pkgver=.*/pkgver='"$pkgver"'/; s/^pkgrel=.*/pkgrel=1/' packaging/arch/PKGBUILD
 if grep -q '^epoch=' packaging/arch/PKGBUILD; then
   sed -i 's/^epoch=.*/epoch=1/' packaging/arch/PKGBUILD
 else

@@ -13,11 +13,11 @@ if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
   exit 1
 fi
 
-ver="$(sed -n 's/^version = "\([0-9.]*\)"/\1/p' Cargo.toml | head -1)"
-out="${1:-$root/ryotunes-$ver.tar.gz}"
+ver="$(sed -n 's/^version = "\([0-9A-Za-z.+-]*\)"$/\1/p' Cargo.toml | head -1)"
+out="${1:-$root/ryotune-omni-$ver.tar.gz}"
 
 "$root/scripts/release-check.sh"
 
-git archive --format=tar --prefix="ryotunes-$ver/" HEAD | gzip -n > "$out"
+git archive --format=tar --prefix="ryotune-omni-$ver/" HEAD | gzip -n > "$out"
 ( cd "$(dirname "$out")" && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" )
 printf 'Created %s (+ .sha256)\n' "$out"
