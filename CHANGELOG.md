@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added project overview, developer, compatibility, and licensing documentation with Ryotune-Omni branding.
+
 ## v1.2.3 - 2026-10-19
 
 - Void Linux support: `scripts/install-void.sh` and Settings → About → Update now install the release as an xbps package. See docs/INSTALL-VOID.md.

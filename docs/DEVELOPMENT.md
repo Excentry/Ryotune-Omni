@@ -11,7 +11,7 @@ Technical reference and planning for Ryotune-Omni, an independently maintained p
 | Project baseline and platform status | [Technical baseline](#technical-baseline) · [Platform support](#platform-support) |
 | Existing code and porting strategy | [Architecture and portability](#architecture-and-portability-strategy) |
 | Feature status and constraints | [Compatibility reference](COMPATIBILITY.md) |
-| Builds, tests, and release cautions | [Development and releases](#building-installation-and-releases) |
+| Versioning policy and release cautions | [Versioning and releases](#versioning-and-releases) |
 | Attribution and distribution | [Licensing guide](LICENSING.md) |
 | How to help | [Contributing](../CONTRIBUTING.md) |
 
@@ -127,7 +127,18 @@ Reference guidance: [Tauri prerequisites](https://v2.tauri.app/start/prerequisit
 
 The [compatibility reference](COMPATIBILITY.md) contains the feature matrix, provider restrictions, download behavior, and validation-reporting criteria. No Windows or Android feature is currently verified working.
 
-## Building, installation, and releases
+## Versioning and releases
+
+Ryotune-Omni uses its own release ledger, separate from Ryotunes. The inherited `1.2.3` manifests and `v1.*` changelog entries describe the source baseline; they are not Ryotune-Omni releases.
+
+- Use SemVer and tags in the form `omni-vMAJOR.MINOR.PATCH`; never reuse or recreate upstream tags.
+- The first tag is `omni-v0.1.0`, created only for the first validated Ryotune-Omni build.
+- Increment patch for compatible fixes, minor for compatible features, and major for breaking changes or required migration.
+- Documentation-only changes stay under `Unreleased`; they do not create tags or releases.
+- Create a tag only through an explicitly reviewed Ryotune-Omni release. A tag must identify the exact source and artifacts for that release.
+- `scripts/next-omni-version.sh [major|minor|patch]` previews the next version from `omni-v*` tags. With no Omni tags, it returns `0.1.0`.
+
+The existing application manifests, self-updater, package metadata, and `scripts/sync-version.sh` still belong to the inherited Ryotunes distribution. Do not use them to publish an Omni release until product identity, update routing, package targets, and runtime support have been separated and validated.
 
 ### Windows and Android
 
@@ -150,7 +161,7 @@ These documents contain historical Linux assumptions and some stale lifecycle de
 
 Existing test sources include Rust unit tests, Node-run `ui/src/lib/*.check.ts` regressions, and separate QtTest files in `client/tests`. Linux CI separates an environment-sensitive real-libmpv test from the main suite; QML tests are not currently a CI job. These are inherited checks, not proof of target-platform compatibility.
 
-> **Release safety:** The inherited workflow can version, tag, and publish Linux packages on default-branch pushes. Update/self-install code and several links still target upstream infrastructure. Review project-specific publishing, application identity, and update routing before distributing binaries. Existing Linux packages are not Windows or Android releases.
+> **Release safety:** The upstream Ryotunes release workflow is archived in `.github/legacy-workflows/ryotunes-release.yml` and is not the Ryotune-Omni release process. No Omni release automation or update route is available yet. Do not publish Omni artifacts until package identity, updater routing, signing, and compatibility gates are defined and verified.
 
 ## Licensing and attribution
 

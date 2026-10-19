@@ -121,7 +121,7 @@ Common types:
 | `chore` | Other maintenance |
 | `revert` | Reverting a previous change |
 
-For an incompatible API or behavior change, add `!` before the colon and explain migration requirements in the PR description, for example `feat(protocol)!: change playback event payload`. Do not use release titles such as `release: v1.2.4` for ordinary changes; releases follow the dedicated release process.
+For an incompatible API or behavior change, add `!` before the colon and explain migration requirements in the PR description, for example `feat(protocol)!: change playback event payload`. Do not use release titles for ordinary changes; releases follow the Ryotune-Omni release policy.
 
 Examples:
 
@@ -147,8 +147,12 @@ Report the commit, OS/device, toolchain and relevant native-library versions, pr
 
 Keep source inspection, successful compilation and runtime verification distinct. Record target-specific results and limitations in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md); do not label planned features as working. Report Ryotune-Omni-specific port failures here rather than presenting them to upstream as confirmed upstream defects.
 
+## Issue labels
+
+Use the repository labels defined in [`.github/labels.yml`](.github/labels.yml): one `type:` label, the applicable `platform:` label, and a `priority:` or `status:` label when useful. Keep the label set small and focused on triage. The GitHub issue tracker must be enabled before contributors can open issues.
+
 ## Attribution and release safety
 
 Preserve original copyright and license notices, identify modifications, and retain required third-party attribution. Read [docs/LICENSING.md](docs/LICENSING.md) for corresponding-source and distribution considerations; this documentation is not a compliance certification.
 
-The inherited default-branch push workflow can version, tag and publish Linux packages. Review [release safety](docs/DEVELOPMENT.md#building-installation-and-releases) before publishing or changing release configuration. Existing updater routes and application identifiers are not proof of a Ryotune-Omni release.
+The upstream Ryotunes release workflow is archived and must not publish from this repository. Review [versioning and release policy](docs/DEVELOPMENT.md#versioning-and-releases) before creating an Omni tag or distributing artifacts.

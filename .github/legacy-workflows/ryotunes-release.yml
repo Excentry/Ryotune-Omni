@@ -1,4 +1,4 @@
-name: Release
+name: Legacy Ryotunes release (inactive)
 
 # Ryotunes releases itself on every push to the default branch. One pipeline:
 #   1. release:  work out the next v1 version from the published tags (the
