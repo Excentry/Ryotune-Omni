@@ -1,0 +1,454 @@
+# Ryotune-Omni | Roadmap del port a Windows 11
+
+**Plan de ejecución para dos contribuidores**
+
+> **Objetivo:** entregar una aplicación Windows 11 instalable, verificable y mantenible, reutilizando el núcleo donde sea viable, preservando el carácter visual de Ryotunes y evitando regresiones en Linux.
+
+| Campo | Decisión/estado |
+| --- | --- |
+| Plataforma inicial | Windows 11 |
+| CPU inicial | x64 confirmado para el prototipo y la Alpha |
+| Windows 10 | Fuera del alcance inicial |
+| Interfaz Windows | Svelte + Tauri integrado en un proceso; runtime aún por validar |
+| Motor de audio | libmpv para prototipo; distribución estable y licencia pendientes de gate |
+| Diseño | Mantener Ryotunes como experiencia predeterminada y permitir personalización gradual |
+| Android | Fuera de este roadmap |
+| Base técnica | [Arquitectura actual del repositorio](../ARCHITECTURE.md) y [guía de portabilidad](../DEVELOPMENT.md#architecture-and-portability-strategy) |
+
+## Índice
+
+1. [Decisiones y alcance](#1-decisiones-y-alcance)
+2. [Responsabilidades](#2-responsabilidades)
+3. [Reglas de colaboración e integración](#3-reglas-de-colaboración-e-integración)
+4. [Entregas y Definition of Done](#4-entregas-y-definition-of-done)
+5. [Fases y tareas](#5-fases-y-tareas)
+6. [Validación y operación](#6-validación-y-operación)
+7. [Riesgos, dependencias y decisiones abiertas](#7-riesgos-dependencias-y-decisiones-abiertas)
+
+## 1. Decisiones y alcance
+
+### Decisiones cerradas para desbloquear el trabajo
+
+| Tema | Decisión | Límite / siguiente validación |
+| --- | --- | --- |
+| Plataforma | Windows 11 x64. Windows 10 y ARM64 quedan fuera de esta entrega. | W11 y CI deben usar target MSVC x64; ampliar plataformas requiere aprobación explícita. |
+| Host | Reutilizar Svelte + Tauri dentro de un proceso; no crear un daemon Windows separado ahora. | W24 valida que ocultar/cerrar la ventana no detenga playback o descargas y que Quit sí libere recursos. Reabrir arquitectura solo si falla esa aceptación o aparece evidencia nueva. |
+| Alcance del producto | Paridad con Linux sigue siendo objetivo del producto; ninguna función se elimina por quedar fuera de Alpha. Las funciones no implementadas se declaran pendientes/no disponibles. | La matriz W04 asigna funciones a Alpha o fases posteriores y conserva pruebas por función. |
+| Alpha interna | Corte vertical: YouTube browse/login/reproducción; playback y cola con persistencia; biblioteca local; ventana/cierre/reapertura y segunda instancia; diagnóstico mínimo. | Requiere instalación en Windows 11 limpio y flujo end-to-end W45. Proveedores, descargas, integraciones y paridad restante continúan en fases posteriores. |
+| Motor de audio | Usar libmpv para prototipo, no adoptar todavía el build GPL de desarrollo como binario de release. | Excentry valida build reproducible, filtros/codecs, runtime, procedencia y obligaciones GPL antes de W20/W85. |
+| Datos | Datos y caché en ubicaciones por usuario resueltas por Tauri; no guardar estado en el directorio de instalación ni compartirlo con Linux. | W33 valida ACL, migración y persistencia. Definir identificador único del fork antes de instalar junto a upstream o distribuir. |
+| Actualización/publicación | Sin updater ni publicación pública en Alpha. No usar repositorio, identidad o credenciales de upstream. | Resolver identidad del fork, endpoint, firma, licencias y recuperación antes de cualquier distribución externa (W84–W86). CI rutinaria no publica. |
+| Diseño | Ryotunes predeterminado y reconocible en Alpha. Skins/temas/presets avanzados se implementan en Fase 6; editor libre queda opcional y aplazado. | W26 fija baseline visual; W60–W64 cubren la personalización posterior. |
+
+Estas decisiones de producto y arquitectura fueron confirmadas por @IsaVonxz-type el 2026-10-19 para desbloquear trabajo en paralelo. No convierten tareas de validación en tareas completadas ni reemplazan la revisión cruzada requerida.
+
+### Alcance inicial
+
+- Port de escritorio para Windows 11 x64.
+- Usar el host Svelte/Tauri existente en un proceso; build/runtime, ciclo de vida y motor libmpv aún deben validarse.
+- Reutilizar lógica de dominio y contratos Rust, sin duplicar lógica de proveedores entre hosts.
+- Conservar Linux como referencia funcional y ejecutar sus checks para cambios compartidos.
+- Usar el cliente QML/Quickshell de Linux como referencia de paridad funcional y visual; no portarlo ni convertirlo en runtime Windows.
+- Mantener la identidad de Ryotunes: jerarquía visual, comportamiento centrado en artwork, tratamiento de tipografía, color y reproductor. Adaptar controles e interacción a Windows cuando corresponda.
+- Introducir personalización mediante un sistema acotado y extensible, no un editor arbitrario desde la primera entrega.
+
+### Fuera del alcance por ahora
+
+- Windows 10 y ARM64, salvo que se aprueben expresamente.
+- Portar Quickshell, Wayland, systemd, MPRIS, Hyprland o integraciones Ryoku literalmente.
+- Reemplazar libmpv antes de medir una alternativa y documentar el bloqueo que motiva el cambio.
+- Rehacer toda la interfaz antes de comprobar la cobertura de funciones existente.
+- Publicar actualizaciones usando repositorio, identidad o credenciales de upstream.
+
+### Niveles de evidencia
+
+No usar “compatible” como sinónimo de “compila”. Registrar cada función como:
+
+1. **Inspeccionada:** evidencia estática, sin build target.
+2. **Compila:** target y comando identificados.
+3. **Prueba automatizada:** test concreto pasó.
+4. **Verificada en runtime:** escenario y Windows 11 registrados.
+5. **Distribuible:** artefacto instalado, ejecutado, actualizado y revisado.
+
+## 2. Responsabilidades
+
+El reparto refleja la instrucción del equipo. No presupone experiencia exclusiva: el segundo integrante revisa cambios críticos y hay transferencia explícita de propiedad cuando haga falta.
+
+| Responsable | Áreas primarias | Archivos/áreas de propiedad principal |
+| --- | --- | --- |
+| **@Excentry** | Backend, audio, adaptación Windows, dependencias nativas, CI/CD, empaquetado y operación | `crates/`, manifests Cargo, `Cargo.lock`, `.github/workflows/`, scripts de build/paquete |
+| **@IsaVonxz-type** | Frontend, Tauri, UX, autenticación desde host, pruebas de interfaz, accesibilidad y documentación de producto | `ui/`, `src-tauri/src/`, `src-tauri/build.rs`, capabilities/permissions, configuraciones Tauri, docs de UI y compatibilidad |
+| **Ambos** | Contratos entre host y core, alcance/paridad, seguridad, criterios de release | Un implementador dueño por cambio; el otro realiza revisión cruzada |
+
+### Propiedad de archivos compartidos
+
+| Archivo/grupo | Dueño de edición | Coordinación requerida |
+| --- | --- | --- |
+| `Cargo.toml`, manifests Cargo, `Cargo.lock` | @Excentry | @IsaVonxz-type solicita dependencias; una sola actualización de lockfile por PR |
+| `crates/core/src/host.rs`, contratos y estado compartido | @Excentry | Publicar propuesta de interfaz antes de implementarla; revisión de @IsaVonxz-type |
+| `src-tauri/src/lib.rs`, `commands.rs`, `build.rs` | @IsaVonxz-type | Integrar contratos del core publicados por @Excentry |
+| `ui/package.json`, `ui/pnpm-lock.yaml` | @IsaVonxz-type | @Excentry solicita tooling; no actualizar versiones como trabajo incidental |
+| `.github/workflows/` y empaquetado Windows | @Excentry | @IsaVonxz-type especifica casos funcionales que deben cubrirse |
+| Documentación pública de producto | @IsaVonxz-type | Mantener hallazgos técnicos fieles al estado reportado por @Excentry |
+
+Si ambos necesitan modificar un archivo con dueño único, dividir el trabajo por PR o serializarlo. No editarlo simultáneamente.
+
+## 3. Reglas de colaboración e integración
+
+1. Crear una tarea y asignar un dueño antes de editar.
+2. Anunciar archivos previstos y contrato afectado; declarar dependencias y criterio de aceptación.
+3. Usar ramas cortas y PR pequeñas; integrar cambios de negocio, refactors, dependencias y release por separado.
+4. Cada PR tiene un solo implementador y una revisión del otro integrante para contratos compartidos, autenticación, procesos, datos o publicación.
+5. Antes de modificar un archivo, comprobar su estado y preservar trabajo no relacionado.
+6. No regenerar lockfiles, formatear directorios completos ni actualizar dependencias sin necesidad ligada a la tarea.
+7. Integrar primero las interfaces compartidas; después, el consumidor de Tauri. Mientras espera, frontend puede avanzar con fixtures, sin afirmar que validó backend real.
+8. Si los contratos cambian, actualizar pruebas de ambos lados en la misma secuencia de integración.
+9. Cambios compartidos deben seguir pasando la suite Linux. Una limitación ambiental se informa como no verificada, no como aprobada.
+10. No fusionar a la rama por defecto mientras su push active publicación automática de upstream. Primero separar y verificar CI de release.
+
+### Plantilla mínima de tarea
+
+```text
+ID / objetivo:
+Responsable / revisor:
+Dependencias:
+Archivos bajo propiedad:
+Contrato o datos que cambian:
+Aceptación observable:
+Pruebas, entorno y resultados:
+Riesgo y recuperación:
+```
+
+Estados: `Pendiente -> Lista -> En curso -> Revisión -> Verificación -> Hecha`. Usar `Bloqueada` con causa y siguiente acción. Una tarea solo se marca hecha después de revisar la evidencia.
+
+## 4. Entregas y Definition of Done
+
+| Entrega | Mínimo exigible | No implica |
+| --- | --- | --- |
+| **Prototipo técnico** | Builds reproducibles de host y audio; pruebas de riesgos técnicos; ejecución interactiva | Soporte de usuario, paridad o publicación |
+| **Alpha interna** | Instalación Windows 11 limpia; recorrido de reproducción; persistencia; cierre/reapertura y segunda instancia | Paridad completa de proveedores o instalador público |
+| **Beta funcional** | Funciones acordadas para la primera entrega, personalización prevista, descarga/control donde estén comprometidos | Ausencia de límites de proveedores |
+| **Release candidate** | Seguridad, rendimiento, recuperación, licencias, actualización y prueba de instalación aprobados | Publicación automática |
+| **Estable** | Mismo artefacto validado y firmado; notas, fuente correspondiente, límites y soporte publicados | Compatibilidad con versiones fuera del alcance |
+
+### Invariantes funcionales
+
+- Un solo propietario del motor de audio y estado persistente.
+- Cerrar la ventana no interrumpe reproducción ni descargas activas.
+- Quit explícito detiene trabajo y libera recursos propios.
+- Una segunda instancia enfoca la existente sin competir por DB o audio.
+- Fallos de proveedor no inutilizan reproducción local.
+- Funciones ausentes se muestran como no disponibles; nunca se finge éxito.
+- Credenciales, cookies y URLs firmadas no se escriben en logs ni artefactos de diagnóstico.
+- No ampliar permisos de WebViews remotas u ocultas para resolver errores del port.
+- Los cambios compartidos no introducen regresiones conocidas en Linux.
+
+### Requisito de diseño y personalización
+
+**Diseño predeterminado:** debe reconocerse como Ryotunes, no como un dashboard genérico. Preservar composición, jerarquía, artwork y lenguaje visual en Svelte; adaptar ventanas, navegación, teclado y controles nativos a Windows 11.
+
+**Personalización progresiva:**
+
+1. **Primera entrega:** tema claro/oscuro, acento, colores y tipografía mediante el sistema de skins existente o una extensión compatible; valores seguros por defecto.
+2. **Siguiente entrega:** densidad compacta/cómoda y presets de navegación/reproductor; preferencias persistentes y restaurables.
+3. **Futuro opcional:** edición libre de layout, solo después de validar costos de mantenimiento, accesibilidad, escalabilidad de UI y compatibilidad de skins.
+
+No cambiar estructura arbitraria de páginas como requisito de MVP. Mantener separación entre tokens de tema, presets de layout y estado de usuario para que la personalización no bifurque el frontend.
+
+## 5. Fases y tareas
+
+Las fases son puertas de avance, no fechas. El equipo estima duración después de las pruebas de viabilidad. W0 evita riesgos de publicación; W1 y W2 permiten trabajo paralelo limitado.
+
+### Fase 0 — Proteger integración y confirmar alcance
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W00 | @IsaVonxz-type | Acordar Alpha/Beta, matriz de paridad y preservar identidad Ryotunes — **decisiones cerradas** | El alcance de Alpha y la paridad por fases quedan acordados; baseline visual sigue en W26 |
+| W01 | @Excentry | Revisar la publicación automática de `.github/workflows/release.yml` | Un push/merge normal no publica accidentalmente paquete o tag; CI de PR separada de release |
+| W02 | Ambos | Confirmar x64, host Svelte/Tauri, actualización y aislamiento de datos — **decisiones cerradas** | Windows 11 x64, Tauri integrado, datos por usuario, sin updater ni publicación pública en Alpha; gates restantes asignados |
+| W03 | @Excentry | Proponer branch/CI/deployment rules seguras para equipo de dos | Permisos mínimos y procedimiento de release documentados; cambios de Settings solo con autorización del dueño |
+| W04 | @IsaVonxz-type | Matriz por función y host — **baseline aprobada; runtime Linux pendiente** | Contratos, superficies QML/Svelte/Tauri/daemon, pruebas y prioridad visibles; validar diferencias dudosas antes de congelar |
+
+#### W04 — Matriz de paridad funcional (baseline Linux)
+
+**Política acordada:** Windows debe conservar las funciones de la versión Linux. Las integraciones propias del sistema se reemplazan por equivalentes Windows; no se eliminan del alcance. Windows reutiliza Svelte/Tauri; QML/Quickshell documenta el comportamiento Linux, no es una opción de host Windows. La Alpha puede avanzar por cortes verticales, pero cada función aún pendiente debe declararse como pendiente y la paridad completa sigue siendo criterio de producto.
+
+La matriz toma como fuentes de verdad `ui/src/lib/api.ts`, `src-tauri/src/commands.rs`, `src-tauri/build.rs`, las rutas/componentes de `ui/src/`, `crates/core` y `crates/ryotunesd`. Las referencias describen capacidades presentes en el código Linux, no soporte Windows verificado. El estado inicial de todas las filas es **Inspeccionada; Windows no verificado en runtime**.
+
+| Área / funciones que deben conservarse | Baseline Linux (evidencia principal) | Equivalente o adaptación Windows | Prueba de aceptación Windows |
+| --- | --- | --- | --- |
+| Inicio, navegación y descubrimiento: Home, recomendaciones, chips, historial/Shortcuts, búsqueda categorizada y paginada | `ui/src/routes/+page.svelte`, `search/+page.svelte`; `get_home*`, `search*`, `get_browse_grid` | Reutilizar Svelte y contratos; conservar carga incremental, navegación y estados vacíos/error | Recorrer Home y todas las categorías de búsqueda; paginar resultados y abrir artist/album/playlist desde tarjetas |
+| Proveedores y cuentas: YouTube Music, Spotify, SoundCloud, TIDAL; login/logout, selección y cambio de cuenta, catálogo, favoritos y errores recuperables | `crates/core/src/state.rs`, `spotify.rs`, bridges de proveedores; `get_account*`, `login_webview`, `switch_account`, `rate`, `subscribe` | Host de autenticación compatible con WebView2/browser; preservar requisitos, restricciones por cuenta/región y errores de cada proveedor | Ciclo login/logout/cambio de cuenta y browse/play por proveedor con cuentas de prueba; fallar un proveedor no debe romper local ni los demás |
+| Playback y sonido: play/pause, seek, volumen, next/previous, shuffle/repeat, stop-after-current, gapless/autoplay, tempo, pitch y efectos | `crates/player`, `crates/core/src/orchestrator.rs` y `state.rs`; comandos de playback y eventos en `api.ts` | libmpv para Windows con DLL, codecs y filtros requeridos; mantener un único dueño de motor/estado | Archivo local y streams: controles, EOF, gapless, error/skip, efectos, cierre y liberación de handles; comprobar pitch/loudness |
+| Cola y transporte: play next, add/clear/remove/reorder, contexto de álbum/lista, persistencia y restauración | `QueueList.svelte`; `play_*`, `add_to_queue`, `move_in_queue`, `get_queue`, snapshots/eventos | Mismo contrato y semántica; restaurar desde almacenamiento por usuario | Manipular cola, reiniciar/cerrar/reabrir y comprobar orden, índice actual y contexto sin duplicados |
+| Catálogo y biblioteca: Library, canciones/álbumes/artistas guardados, playlists, álbumes, artistas, listas inteligentes On Repeat/Recently Played/Rediscover, estadísticas y rating | Rutas `library`, `playlist`, `album`, `artist`, `list`; `get_library*`, `get_playlist*`, `get_album`, `get_artist`, `listening_stats`, `play_counts` | Mantener API/modelos y persistencia; adaptar rutas de datos y cualquier picker | Comparar contenido/acciones con Linux; validar signed-out, paginación, smart playlists, estadísticas y persistencia |
+| Edición y transferencia de playlists: crear, ordenar, editar nombre/descripción/privacidad, añadir/quitar, borrar, portada, importar/exportar JSON; playlists locales | `commands.rs` playlist actions; `EditPlaylistDialog.svelte`, `PlaylistMenu.svelte` | Pickers nativos Windows; almacenamiento seguro por usuario; preservar validación/formato transferible | CRUD en playlist remota y local, cancelación de picker, import/export y portada; comprobar que no se aceptan archivos inválidos |
+| Música local: carpetas vigiladas, escaneo, tags, artistas/álbumes, artwork, archivos ausentes y reproducción offline | `crates/core/src/local.rs`; `get_local_library`, `add_local_folder`, `remove_local_folder` | Paths Windows, Unicode, permisos/ACL, enlaces y cambios del filesystem; selector de carpetas nativo | Escanear, reproducir y reescanear carpetas con Unicode/espacios; archivo eliminado se retira sin bloquear UI |
+| Letras: sincronizadas/no sincronizadas, palabras con timing, búsqueda/caché, seek, ajuste manual, sidecar/embedded y fallback de proveedor | `crates/core/src/lyrics.rs`; `LyricsView.svelte`; `get_lyrics` | Mantener datos y sincronización; confirmar lectura de sidecars/metadatos en rutas Windows | Comparar letras, sincronización, seek, ajuste, caché y estados sin resultados/error |
+| Radio: radio generada desde canción/artista/álbum/playlist e Internet Radio en vivo | `crates/core/src/radio.rs`; `start_radio`, `radio_stations`, `play_radio_station` | libmpv/HTTP en Windows y cancelación de streams en vivo | Generar radio desde cada tipo compatible; buscar estaciones, reproducir, pausar, terminar y recuperar de URL caída |
+| Descargas/offline: cola e historial persistentes, preferencias de formato, progreso, cancelar/reintentar, metadata, artwork/letras incrustadas | `crates/ryotunesd/src/downloads.rs`, `download_media.rs`; UI de Downloads/Settings | Gestionar procesos Windows y árboles de procesos; ubicar/validar yt-dlp y FFmpeg; cancelar sin hijos huérfanos | Descargar fuentes permitidas, reiniciar y recuperar cola, cancelar/reintentar; verificar archivo y enriquecimiento; probar cierre de UI |
+| Personalización e identidad visual: skins, tema claro/oscuro, acento/colores/tipografía, densidad/presets, artwork y escala | `client/Skin.qml`, `client/Style.qml`, `docs/SKINS.md`, `ui/src/lib/theme.svelte.ts`, `ryoku_theme_tokens` | Desacoplar Ryoku/Matugen/Follow System Linux; conservar el diseño predeterminado y adaptar tema a Windows; skin inválida revierte al default | Aplicar/restaurar skin y tema, reiniciar, DPI/ventana mínima; comparar visualmente con baseline Linux |
+| Mini-player y ventanas: mini con now-playing/cola/letras; cerrar/minimizar/restaurar, segunda instancia y estado de ventanas | `src-tauri/src/mini.rs`, `main_window.rs`; `MiniPlayer.svelte`; `open_mini`/`close_mini` | Ventanas Tauri nativas Windows; segundo lanzamiento enfoca instancia existente; respetar cierre sin detener tareas | Abrir/cerrar/restaurar mini y ventana principal; segunda instancia enfoca la primera; playback/download sobreviven a ocultar/cerrar ventana |
+| Controles del sistema: tray, teclas multimedia, metadatos y controles externos de reproducción | `crates/core/src/media.rs`, `src-tauri/src/tray.rs`, `taskbar.rs`; MPRIS en Linux | Tray de Windows + SMTC/media keys; traducir lifecycle/metadatos, no portar MPRIS literalmente | Controlar play/pause/next/previous y seek desde controles Windows; validar arte y metadatos tras ocultar/restaurar |
+| Integraciones: Last.fm scrobbling, Discord Rich Presence, Listen Together (crear/unirse, roles, aprobaciones, cola/sugerencias/sync) | `crates/core/src/lastfm.rs`, `discord.rs`, `listentogether/`; comandos/eventos `lastfm_*`, `lt_*` | Browser auth, IPC/SDK y ciclo de vida compatibles con Windows; aislar fallos opcionales | Conectar/desconectar; scrobble con umbral correcto; probar sala host/guest, sync, reconexión y errores; ninguna credencial en logs |
+| Preferencias y accesibilidad de uso: volumen/quality/proxy/historial/autoplay/duplicados/recursos/escala, atajos y estados UI | `SettingsDialog.svelte`, `KeyboardShortcuts.svelte`, `UI_SETTINGS`, validadores de `commands.rs` | Persistencia por usuario; autostart con mecanismo Windows; adaptar DPI, teclado, foco y lector de pantalla | Cada setting sobrevive reinicio y aplica efecto real; probar atajos, teclado, Narrator y escalas 100–200 % |
+| Actualización, diagnóstico y operación: comprobar/instalar updates, logs/diagnósticos y fallos explicables | `crates/core/src/update.rs`; comandos `check_for_updates`, `install_update`; páginas Diagnostics/Logs | Sustituir actualización Linux (pacman/xbps/pkexec) por mecanismo Windows aprobado; logs locales rotados y exportables | Instalar/actualizar/recuperar en Windows limpio; comprobar hash/procedencia y que diagnóstico no incluye secretos/cookies/URLs firmadas |
+
+**Asignación inicial a fases/prioridades:**
+
+- **P0 — Fase 4 / Alpha:** playback, cola, recuperación, browse/login YouTube, biblioteca local, ventanas/segunda instancia y diagnóstico mínimo (`W40`–`W45`). Son la primera ruta vertical usable.
+- **P1 — Fase 5 / paridad por bloques:** Spotify, SoundCloud y TIDAL; descargas; tray/SMTC/media keys; audio/letras/radio e integraciones Last.fm/Discord/Listen Together (`W50` y bloques 1–5). No se consideran descartados por no estar en Alpha.
+- **P1 — Fase 6 / identidad y personalización:** skins, tema y presets/densidad (`W60`–`W64`); la identidad Ryotunes y tema predeterminado se conservan desde Alpha como parte de la UI.
+- **P0 transversal — Fase 0–3:** contratos UI-host, eventos, almacenamiento por usuario, seguridad y no-regresión Linux (`W00`–`W35`); habilitan cada bloque y no son tareas pospuestas a paridad.
+- **P0 para release — Fases 7–8:** accesibilidad, rendimiento, robustez, actualización, empaquetado, licencias y recuperación (`W70`–`W86`).
+
+**Cierre de W04:** cada función visible en Linux queda asociada a contrato (comando/evento), superficies UI, adaptación Windows, prioridad/fase y prueba. Confirmar inventario mecánicamente contra el registro de comandos de `src-tauri/build.rs` y eventos de `ui/src/lib/api.ts`; registrar excepciones solo como diferencias de integración del sistema, no como recortes funcionales. Esta matriz es baseline de trabajo y debe revisarse contra el runtime Linux actual antes de congelar paridad.
+
+#### Auditoría estática de contratos y superficies (W04)
+
+**Decisión de host:** conservar Svelte + Tauri para Windows y aprovechar el trabajo existente en `ui/` y `src-tauri/`. No portar Quickshell. **Flujos de ejecución confirmados en código:** `src-tauri/src/main.rs` abre Tauri en Windows y el launcher QML/daemon en Linux. Por tanto, `ui/src/lib/api.ts` no representa por sí solo la superficie Linux vigente: la referencia de paridad debe incluir también `client/` y `crates/ryotunesd/src/methods.rs`.
+
+**Superficie Tauri compartida que debe cotejarse por nombre, parámetros, resultado/error y payload** (registro en `src-tauri/build.rs`; wrappers en `ui/src/lib/api.ts`; implementación en `src-tauri/src/commands.rs`):
+
+- Búsqueda y catálogo: `search`, `search_page`, `search_page_more`, `search_all`, `search_all_more`, `search_cards`, `search_cards_page`, `search_cards_more`, `get_home`, `get_home_more`, `get_library`, `get_library_albums`, `get_library_artists`, `get_playlist`, `get_playlist_more`, `get_album`, `get_artist`, `get_browse_grid`.
+- Playback/cola: `play`, `prefetch_stream`, `play_index`, `remove_from_queue`, `clear_queued`, `add_to_queue`, `move_in_queue`, `play_next`, `next_track`, `prev_track`, `toggle_shuffle`, `set_repeat`, `set_stop_after_current`, `toggle_pause`, `seek`, `set_volume`, `set_playback_params`, `get_queue`, `get_playback`.
+- Biblioteca/edición: `playlist_index`, `sync_playlist_index`, `play_counts`, `listening_stats`, `play_playlist`, `start_radio`, `radio_stations`, `play_radio_station`, `export_playlist_file`, `import_playlist_file`, `rate`, `set_album_saved`, `add_to_playlist`, `add_to_local_playlist`, `remove_from_playlist`, `create_playlist`, `edit_playlist_details`, `set_playlist_cover`, `set_playlist_sort`, `delete_playlist`, `subscribe`, `get_local_library`, `add_local_folder`, `remove_local_folder`.
+- Preferencias/cuenta/host: `get_settings`, `set_setting`, `discord_status`, `ryoku_theme_tokens`, `get_personal`, `set_personal`, `get_stream_clients`, `clear_caches`, `get_account`, `get_account_identities`, `switch_account`, `sign_out`, `login_webview`, `frontend_ready`, `open_mini`, `close_mini`, `open_external`.
+- Integraciones y operación expuestas por Tauri: `lt_get_state`, `lt_set_server_url`, `lt_create_room`, `lt_join_room`, `lt_leave`, `lt_approve_join`, `lt_reject_join`, `lt_kick`, `lt_transfer_host`, `lt_suggest`, `lt_approve_suggestion`, `lt_reject_suggestion`, `lt_request_sync`, `get_lyrics`, `lastfm_connect`, `lastfm_disconnect`, `lastfm_status`, `check_for_updates`, `install_update`.
+
+**Superficie adicional usada por el cliente Linux QML/daemon** (no asumir que existe en Tauri Windows; cada capacidad requiere equivalente en el host Windows):
+
+| Grupo | Métodos/eventos Linux adicionales relevantes | Superficie Linux | Trabajo de paridad Windows |
+| --- | --- | --- | --- |
+| Proveedores | Métodos `set_provider`, `get_provider`, `spotify_status`, `spotify_sign_in`, `spotify_sign_out`, `soundcloud_status`, `soundcloud_sign_in`, `soundcloud_sign_out`, `tidal_status`, `tidal_sign_in`, `tidal_sign_out`, `tidal_set_credentials`; eventos `provider-changed`, `spotify-auth`, `soundcloud-auth`, `tidal-auth` | `Playback.qml`, `TitleBar.qml`, `SettingsPage.qml`, flujo de selector/login en QML | Agregar contrato/handlers y UI equivalente a Tauri; conservar OAuth/browser/device flow, estados de error y restricciones por proveedor |
+| Efectos y waveform | `get_audio_fx`, `set_audio_fx`, `get_waveform`; evento `audio-fx` | `SoundDialog.qml`, `Playback.qml` y waveform de SoundCloud | Exponer controles y eco de estado; probar efectos reales con build Windows de libmpv y waveform para SoundCloud |
+| Descargas | `get_download_settings`, `set_download_settings`, `get_downloads`, `enqueue_download`, `enqueue_collection`, `cancel_download`, `retry_download`, `clear_download_history`, `open_download`, `open_download_folder`; evento `downloads-changed` | `DownloadsPage.qml`, `DownloadSettings.qml`, `DownloadButton.qml`, `Downloads.qml` | Tauri Windows necesita API, UI y worker/proceso Windows equivalentes; validar que cierre de ventana no detiene jobs y que cancelación termina árbol de procesos |
+| Diagnóstico | `get_logs`, `log_client_error`, `open_logs_folder` | `DiagnosticsPage.qml`, `Logs.qml` | Añadir diagnóstico/logs locales con rotación y redacción; probar export/abrir ubicación y ausencia de secretos |
+| Perfil de SoundCloud | `get_sc_user` | `ArtistPage.qml` y utilidades de SoundCloud | Conservar metadata y navegación de artista, o mapear a endpoint equivalente con las mismas reglas de error |
+| Lifecycle y sincronización | `hello`, `subscribe`, `show`, `quit`, `sign_in`; snapshot incluye `audioFx`, `provider`, `spotify`, `soundcloud`, `tidal`, `downloads` además de playback/settings/auth | `Daemon.qml`, `Playback.qml`, `shell.qml`, daemon y tray | Tauri Windows mantiene single-instance/Show, snapshot/resync y playback/download supervivientes al cerrar ventana; adaptar lifecycle, no reutilizar socket Unix |
+
+**Eventos de referencia:** el reducer QML `client/lib/playback.js` maneja `now-playing`, `rating`, `queue-changed`, `queue-index`, `position`, `duration`, `playback-state`, `stop-after-current`, `volume`, `audio-fx`, `provider-changed`, `spotify-auth`, `tidal-auth`, `soundcloud-auth`, `playback-error`, `playback-notice`, `cover-error`, `auth-changed`, `lt-state` y `lt-notice`. Otros consumidores QML manejan `personal-changed`, `library-changed`, `downloads-changed` y `show`; `Daemon.qml` re-suscribe y vuelve a aplicar snapshots tras reconexión. En Svelte/Tauri, los listeners de `api.ts` no cubren los eventos específicos de proveedor/descargas de la superficie QML. Crear una tabla payload-origen-consumidor-prueba por evento al implementar cada contrato.
+
+**Diferencias/gaps observados, sin resolverlos por suposición:**
+
+1. `ui/src/lib/api.ts` y los comandos Tauri no exponen los métodos de proveedor, descargas, diagnóstico ni waveform listados arriba, aunque sí forman parte del cliente Linux actual.
+2. Import/export, pickers de carpeta/portada y acceso a archivos usan contratos distintos entre Tauri (diálogo nativo en el comando) y daemon/QML (ruta explícita). Windows debe preservar selección explícita del usuario con picker nativo y no abrir acceso irrestricto a paths desde WebView.
+3. `ryoku_theme_tokens` es una integración Linux/Ryoku; QML obtiene tokens directamente. Windows necesita conservar tema/skins y preferencias con fuente de tokens Windows, no el acoplamiento Ryoku.
+4. Linux usa `xdg-open`, GTK/WebKit oculto, socket Unix, Quickshell, systemd y MPRIS/tray; Windows requiere browser/WebView2, transporte/lifecycle Tauri, autostart y controles Windows. No son funciones que se puedan quitar.
+5. La lista de comandos/eventos es contrato estático; no demuestra que el target Windows compile ni que los flujos funcionen. El estado de todo lo específico de Windows sigue siendo **pendiente de build/runtime** hasta W13, W15, W20–W25 y W45.
+6. Qt/QML como tecnología puede ejecutarse en Windows con un host Qt propio, pero Quickshell no es un host Windows viable para este cliente. Crear un host Qt nuevo duplicaría el host existente sin aportar ventaja clara; queda fuera de alcance.
+
+**Estado W04:** el alcance y la matriz estática quedan aprobados como baseline de planificación. W14 completó el cotejo mecánico y el inventario estático; sigue pendiente confirmar en runtime Linux el caso `subscribe` y resolver la discrepancia del resultado Spotify de `add_to_playlist`. No implica paridad Windows.
+
+**Salida de fase:** alcance y ruta de integración aprobados. No empezar refactor amplio antes de separar publicación de CI.
+
+### Fase 1 — Build reproducible y auditoría por target
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W10 | @Excentry | Resolver grafo Cargo Windows por target/features | Paquetes activos, build dependencies, APIs Unix y DLL requeridas documentadas |
+| W11 | @Excentry | Definir entorno MSVC x64 en Windows 11 | Versiones Rust/Node/pnpm/VS C++/SDK registradas; pasos reproducibles desde máquina limpia |
+| W12 | @Excentry | Auditar libmpv y recurso existente en `src-tauri/tauri.windows.conf.json` | DLL, import library, ABI, dependencias runtime, codecs, filtros, licencia, origen y hash definidos |
+| W13 | @IsaVonxz-type | Ejecutar baseline Svelte/Tauri — **hecha en checkout local** | `pnpm check`, build y nueve checks puros pasaron; toolchain/resultados registrados abajo. No equivale a validar Tauri en runtime Windows |
+| W14 | @IsaVonxz-type | Comparar comandos/eventos Tauri con daemon — **inventario estático completo** | Matriz por método y evento en [el apéndice W14](CONTRACT-MATRIX.md); runtime/contract tests quedan como gates W21/W34 |
+| W15 | @Excentry | Añadir CI Windows no-publicadora | Compila solo paquetes seleccionados; permisos de workflow mínimos; no firma ni publica |
+
+#### W13 — Baseline local ejecutada
+
+- Entorno: Windows (`win32`), Node `v24.12.0`, pnpm `12.8.1`, Rust `1.94.0`; el repo/CI documenta Node 22 y pnpm 11, así que esta ejecución no sustituye la baseline exacta de CI.
+- Dependencias frontend principales resueltas: Svelte `5.56.4`, SvelteKit `2.70.3`, Vite `8.1.3`, TypeScript `6.0.3`, Tauri API `2.11.1`, plugin-dialog `2.7.2`.
+- `pnpm check` (desde `ui/`): **PASS**, 0 errores, 0 warnings.
+- `pnpm build` (desde `ui/`): **PASS**, adapter-static escribió `ui/build`.
+- Nueve checks puros (desde raíz, Node `--experimental-strip-types`): `dnd`, `localsearch`, `menu`, `personal`, `queue`, `rows`, `shortcut-match`, `sort`, `ytlink`: **PASS**.
+- `git diff --check`: **PASS**. `git status --short` conservó solo `?? AGENTS.md`; no aparecieron cambios versionados ni artefactos nuevos sin rastrear.
+- No se probó Tauri/WebView2 instalado ni IPC/runtime; corresponde a W21. W13 valida el baseline frontend y sus checks, no compatibilidad Windows completa.
+
+#### W14 — Cotejo estático Tauri/daemon
+
+Matriz exhaustiva de comandos, parámetros, resultados, errores y eventos (payload/productor/consumidor/prueba): [apéndice W14](CONTRACT-MATRIX.md).
+
+- Inventario mecánico: `ui/src/lib/api.ts` contiene **96 invocaciones**; todas tienen handler `#[tauri::command]`. `commands.rs` añade `lt_suggest` sin wrapper en ese archivo; registro total 97. Hay 92 arms daemon con nombre exacto, cuatro nombres agrupados en un arm que responde `client_side`, `ryoku_theme_tokens` responde también `client_side`, y `subscribe` tiene contrato semánticamente distinto. Ver conteo y firmas completas en el apéndice.
+- Métodos comunes cotejados por área (los nombres son exactos; parámetros posicionales Rust se exponen como camelCase según `api.ts`): búsqueda/paginación `search`, `search_page`, `search_page_more`, `search_all`, `search_all_more`, `search_cards`, `search_cards_page`, `search_cards_more`; playback/cola `play`, `prefetch_stream`, `play_index`, `remove_from_queue`, `move_in_queue`, `play_next`, `add_to_queue`, `clear_queued`, `next_track`, `prev_track`, `toggle_shuffle`, `set_repeat`, `set_stop_after_current`, `toggle_pause`, `seek`, `set_volume`, `set_playback_params`, `get_queue`, `get_playback`; settings/estado `get_settings`, `set_setting`, `discord_status`, `get_stream_clients`, `clear_caches`, `get_personal`, `set_personal`; cuenta `get_account`, `get_account_identities`, `switch_account`, `sign_out`; catálogo `get_home`, `get_home_more`, `get_library`, `get_library_albums`, `get_library_artists`, `get_playlist`, `get_playlist_more`, `playlist_index`, `sync_playlist_index`, `play_counts`, `listening_stats`, `get_album`, `get_artist`, `get_browse_grid`; reproducción de colecciones/radio `play_playlist`, `start_radio`, `radio_stations`, `play_radio_station`; transferencia `export_playlist_file`, `import_playlist_file`; biblioteca local `get_local_library`, `add_local_folder`, `remove_local_folder`; escrituras `rate`, `add_to_playlist`, `add_to_local_playlist`, `remove_from_playlist`, `create_playlist`, `edit_playlist_details`, `set_playlist_cover`, `delete_playlist`, `subscribe`, `set_album_saved`; letras/Last.fm `get_lyrics`, `lastfm_status`, `lastfm_connect`, `lastfm_disconnect`; Listen Together `lt_get_state`, `lt_set_server_url`, `lt_create_room`, `lt_join_room`, `lt_leave`, `lt_approve_join`, `lt_reject_join`, `lt_kick`, `lt_transfer_host`, `lt_approve_suggestion`, `lt_reject_suggestion`, `lt_request_sync`; Tauri/Ryoku `ryoku_theme_tokens`.
+- Para los métodos comunes, las formas de argumentos/resultados están tipadas en los wrappers `invoke<T>(name, params)` de `ui/src/lib/api.ts`; daemon deserializa los mismos nombres camelCase mediante `arg<T>`. Resultado común es el tipo `T` indicado por el wrapper (o `null` wire para `void`). Los errores de dominio son `Result<T,String>` en Tauri frente a `{code,message}` en daemon; errores de deserialización daemon usan `bad_params`. Los 92 arms con nombre coincidente no garantizan equivalencia semántica; excepciones y candidatos están desglosados en el apéndice.
+- Comandos propios del daemon necesarios para paridad Linux y no registrados en Tauri: `hello`, `subscribe`, `show`, `quit`; APIs de providers (`set_provider`, `get_provider`, `*_status`, `*_sign_in`, `*_sign_out`, `tidal_set_credentials`); efectos/waveform (`get_audio_fx`, `set_audio_fx`, `get_waveform`, `get_sc_user`); descargas (`get/set_download_settings`, `get_downloads`, `enqueue_download`, `enqueue_collection`, `cancel_download`, `retry_download`, `clear_download_history`, `open_download`, `open_download_folder`); diagnóstico (`get_logs`, `log_client_error`, `open_logs_folder`). No son gaps de compilación del daemon: son funciones a exponer en el host Windows.
+- Diferencias de parámetros por picker: `add_local_folder` en Tauri abre picker y no recibe `path`; daemon exige `path`. `import_playlist_file` en Tauri no recibe parámetros y devuelve cancelación como `null`; daemon exige `path`. `export_playlist_file` en Tauri recibe `title/items` y abre save picker; daemon además exige `path`. `set_playlist_cover` en Tauri recibe `playlistId/pick`; daemon exige también `path` cuando `pick=true`. El contrato Windows debe usar picker nativo y validar la selección; no permitir que WebView envíe paths arbitrarios. `edit_playlist_details` recibe `playlistId` y campos opcionales planos `name/description/public` en ambos hosts: wrapper Svelte aplana `changes` al construir params.
+- Colisión crítica de nombre y posible bug Linux: `subscribe` Tauri recibe `{channelId, subscribed}` y escribe una suscripción a canal; `subscribe` daemon solo activa stream de eventos y responde snapshot `{playback,queue,settings,auth,audioFx,provider,spotify,soundcloud,tidal,downloads}`. `client/pages/ArtistPage.qml` también llama `Daemon.call("subscribe", {channelId, subscribed})`, pero no hay branch por esos campos en `methods.rs`; ese write parece quedar absorbido por el handler de eventos y no suscribir el canal. Confirmar con prueba/runtime Linux y resolver API con nombres separados; no reutilizar el nombre en un bridge Windows.
+- Diferencia de resultado: `add_to_playlist` Tauri anuncia `boolean`; daemon devuelve bool en YouTube, pero rama Spotify termina con `null` tras añadir. Esto contradice el wrapper y puede afectar al render optimista; normalizar a `true`/resultado equivalente o cambiar contrato compartido con prueba.
+- Diferencias condicionadas por provider: varios métodos con misma forma seleccionan YouTube/Spotify/SoundCloud/TIDAL en daemon (`search_page`, `search_all`, `search_cards`, `get_home`, biblioteca, álbum/artista, `rate` y escrituras). Tauri tiene handlers de proveedor adicionales o menores y no todos mantienen el mismo comportamiento multifuente. Registrar estas como diferencias de backend, no de wire schema.
+- Códigos de error: `invoke` Tauri rechaza con strings; socket daemon responde `{ code, message }`. El adaptador de frontend Windows debe normalizar los errores sin perder mensaje/categoría; probar bad params, proveedor desconectado, archivo inexistente y cancelación de diálogo.
+- Snapshots: Tauri obtiene estado con handshake `frontend_ready` y comandos separados (`get_playback`, `get_queue`, `get_settings`, `get_account`). `subscribe` del daemon entrega esos datos juntos y además `audioFx`, provider/status de Spotify/SoundCloud/TIDAL y downloads. Windows necesita una sincronización de primera carga y reanudación que incluya todos los estados equivalentes.
+- Eventos: payloads tipados de Tauri están declarados junto a listeners de `api.ts`: `now-playing: NowPlaying`; `rating: {videoId,rating}`; `queue-changed: QueueState`; `queue-index: {currentIndex,playedFrom?,shuffle?,repeat?,sourceName?,current}`; `position:{position:number}`; `duration:{duration:number}`; `volume:number`; `playback-state:'playing'|'paused'`; `stop-after-current:boolean`; errores/notices/cover `{message}`; `auth-changed:Account`; `account-selection-required` y `login-done` sin payload usado; `local-changed:{removed:string[]}`; `login-error:string`; `ryoku-theme-changed:RyokuThemeTokens`; `lastfm-state:LastfmState`; `lt-state:LtState`; `lt-notice:string`. Los tipos son contrato de consumo, no exhaustividad de productores. Daemon agrega eventos no expuestos por Tauri: `audio-fx` (AudioFx), `provider-changed:{provider}`, `spotify-auth`/`soundcloud-auth`/`tidal-auth` (máquinas de estado con URL/código/name/message), `personal-changed` (blob), `library-changed:{id}`, `downloads-changed` (snapshot), `show` (activación); verificar cada payload con productor antes de implementar bridge Windows. `playback-error` puede incluir `videoId` adicional; el consumidor tipado lee `message`. `ryoku-theme-changed` es integración Tauri/Ryoku; Windows debe sustituirla por fuente de tema propia.
+- Los nombres no bastan para cerrar contrato: usar `ui/src/lib/api.ts`/`commands.rs` como schema Tauri y `methods.rs` como schema RPC; implementar tests de contrato para parámetros/resultados y payloads en W21/W34 antes de declarar integración.
+
+**Inventario explícito de eventos (nombre contractual):**
+
+| Canal | Nombres | Nota de compatibilidad |
+| --- | --- | --- |
+| Tauri `api.ts` listeners | `now-playing`, `rating`, `queue-changed`, `queue-index`, `position`, `duration`, `volume`, `playback-state`, `stop-after-current`, `playback-error`, `playback-notice`, `cover-error`, `auth-changed`, `account-selection-required`, `local-changed`, `login-error`, `login-done`, `ryoku-theme-changed`, `lastfm-state`, `lt-state`, `lt-notice` | Contrato tipado de referencia; payloads definidos junto a cada listener en `ui/src/lib/api.ts`. |
+| Consumidos por QML/daemon además de ese listado | `audio-fx`, `provider-changed`, `spotify-auth`, `tidal-auth`, `soundcloud-auth`, `personal-changed`, `library-changed`, `downloads-changed`, `show` | Mantener cada flujo/actualización visible en Windows; cada evento debe tener consumidor o mecanismo equivalente documentado. |
+
+**Estado W14:** inventario estático completo. Dos discrepancias (`subscribe` y resultado Spotify de `add_to_playlist`) requieren resolución antes de reutilizar un bridge común; el primer caso necesita confirmación runtime Linux. Pruebas contractuales/IPC y runtime Windows quedan para W21/W34; este cierre no afirma compatibilidad Windows.
+
+**Salida:** build repetible, limitaciones demostradas, y no hay dependencias nativas críticas desconocidas.
+
+### Fase 2 — Prototipos de viabilidad
+
+| ID | Responsable | Tarea | Mínimo de aceptación |
+| --- | --- | --- | --- |
+| W20 | @Excentry | Prueba libmpv Windows | Archivo local reproduce; pause/seek/volume/EOF/cierre correctos; se inspecciona carga y redistribución de DLL |
+| W21 | @IsaVonxz-type | Prueba Tauri/WebView2 y configuración por plataforma — **parcial/bloqueada** | Build local solo pasó con wiring/artefactos nativos no compartidos; falta build reproducible, startup limpio, WebView2/SPA, IPC e instalador. El smoke encontró panic de media-controls por HWND ausente |
+| W22 | @IsaVonxz-type | Probar bridge JavaScript y login YouTube | Harness correcto; timeout, cancelación, cookies esperadas y fallo recuperable demostrados |
+| W23 | @Excentry | Comparar transporte Spotify | Named pipe vs sink/alternativa; latencia, pausa, seek, backpressure, EOF, cancelación y handles medidos |
+| W24 | Ambos | Validar el host integrado Tauri acordado | Prueba demuestra continuidad al ocultar/cerrar ventana, Quit limpio, single-instance y dueño único de audio/datos; reabrir arquitectura solo si falla |
+| W25 | @Excentry | Construir prototipo ejecutable | Ejecuta fuera del shell de desarrollo, con dependencias nativas descubiertas y logs útiles |
+| W26 | @IsaVonxz-type | Elaborar baseline visual Ryotunes | Capturas/medidas de pantalla, flujo de navegación y tokens visuales de referencia, sin rediseño accidental |
+
+**Salida:** reproducción local en runtime, WebView funcional y decisión explícita para Spotify. Si Spotify se aplaza, publicarlo como limitación aceptada; no marcarlo como portado.
+
+#### W21 — Pruebas Tauri/WebView2 Windows (estado propio)
+
+- Entorno detectado: Rust `1.94.0`, target `x86_64-pc-windows-msvc`; Visual Studio 2022 Build Tools con MSVC `14.44.35207`; Windows SDK `10.0.26100.0`; WebView2 Runtime `155.0.4283.62`.
+- `pnpm check` y `pnpm build`: **PASS**. `cargo check/build` Windows pasaron solo durante una prueba local con wiring y artefactos nativos no compartidos; no se consideran builds reproducibles desde el repo ni un cierre de W12/W20.
+- El proceso de la app permanece vivo durante el smoke, pero el hilo `media-controls` panica porque el host entrega `hwnd: None` a souvlaki. Registrar/fijar el HWND y repetir startup limpio requiere coordinación con el dueño de `crates/core`.
+- No se verificaron WebView2/SPA, invoke IPC, CLI `cargo-tauri`, empaquetado MSI/NSIS ni ejecución desde instalación limpia. W21 sigue parcial; las pruebas de libmpv y su redistribución permanecen en W20/W12 de @Excentry.
+
+### Fase 3 — Fronteras portables y contratos compartidos
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W30 | @Excentry | Extraer servicios de negocio necesarios desde daemon | Core/servicio testeable sin GTK ni APIs Unix; Linux conserva comportamiento |
+| W31 | @Excentry | Definir adaptadores de rutas, credenciales, media y procesos | Interfaz acotada con tests de éxito/error/cancelación; sin `cfg` disperso en lógica de negocio |
+| W32 | @IsaVonxz-type | Adaptar host y comandos Tauri a contratos publicados | Cada comando está registrado, capability acotada y conectada a servicio real |
+| W33 | @Excentry | Adaptar almacenamiento y directorios Windows | Datos/cache en directorio por usuario; ACL y migración comprobadas; fallos reportados |
+| W34 | @IsaVonxz-type | Contratos UI-host y fixtures | Tests de errores, cargas y eventos; fixtures no se etiquetan como backend integrado |
+| W35 | Ambos | Revisar compatibilidad Linux de extracciones | Suite afectada corre; owner registra checks y runtime no verificado |
+
+**Regla:** primero merge de interfaz y pruebas del core; después PR del consumidor Tauri.
+
+### Fase 4 — Corte vertical Alpha
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W40 | @Excentry | Playback, cola y recuperación | Play/pause/seek/volume/next/error; no quedan procesos/handles después de Quit |
+| W41 | @IsaVonxz-type | Recorrido YouTube en interfaz | Login, browse/search, reproducción, errores y restauración visual probados |
+| W42 | @Excentry | Biblioteca local Windows | Unicode, espacios, directorios borrados y metadata; reescaneo no bloquea UI |
+| W43 | @IsaVonxz-type | Ventanas, tray y segunda instancia | Cerrar/restaurar/relanzar evita segunda sesión de audio y conserva estados esperados |
+| W44 | @Excentry | Diagnóstico/telemetría local | Logs rotados y exportables; sin credenciales, cookies ni URL firmadas |
+| W45 | Ambos | Prueba Alpha en Windows 11 limpio | Instalación y recorrido end-to-end, commit/OS/toolchain y resultados registrados |
+
+**Salida:** Alpha instalada sin herramientas del desarrollador; reproducción local y YouTube funcional; ventana puede cerrarse y reabrirse sin perder trabajo activo.
+
+### Fase 5 — Paridad por bloques funcionales
+
+Cada bloque se implementa de extremo a extremo y se revisa antes de iniciar otro. @Excentry domina backend; @IsaVonxz-type domina host/UI; revisión cruzada obligatoria.
+
+| Orden | Bloque | @Excentry | @IsaVonxz-type | Criterio mínimo de cierre |
+| ---: | --- | --- | --- | --- |
+| 1 | Proveedores | Cliente, sesión, audio y recuperación | Flujos de login, selector, estados y errores | Por proveedor comprometido: login/logout, catálogo, reproducción y fallo recuperable |
+| 2 | Spotify | Transporte elegido, seek, pausa y EOF | UI de estado, controles y errores | Pruebas de audio y ciclo de vida pasan; Premium/restricciones documentadas |
+| 3 | Descargas | Procesos Windows, cancelación de árbol, queue y publicación | Settings, progreso, cancelar/reintentar, empty/error states | Cerrar UI conserva jobs; cancelar no deja procesos; reinicio recupera el estado |
+| 4 | Controles Windows | HWND, SMTC y ciclo de vida del owner | Tray, taskbar, mini-player y metadatos | Controles funcionan tras ocultar/restaurar; no se confunde taskbar con SMTC |
+| 5 | Audio, letras e integraciones | Filtros, Last.fm/Discord/Listen Together comprometidos | Ajustes, superficies, seek y opt-in | Sin pérdida de estado; integración opcional falla aislada |
+| 6 | Personalización UI | Contrato/formato de tokens si requiere backend | Skins, temas, presets y preferencias | Skin válida aplica/revierte; valores por defecto fieles a Ryotunes |
+
+**Dependencia:** cada función de la matriz debe ser `Implementada`, `Aplazada` o `No soportada`, con prueba y evidencia en el registro de compatibilidad.
+
+### Fase 6 — Diseño fiel y personalización segura
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W60 | @IsaVonxz-type | Portar tokens y tema predeterminado Ryotunes | Jerarquía, artwork, tipografía y reproductor reconocibles respecto al baseline W26 |
+| W61 | @IsaVonxz-type | Reutilizar/adaptar formato de skins | Colores y tipografías configurables; skin inválida revierte a default y no rompe startup |
+| W62 | @IsaVonxz-type | Añadir densidad compacta/cómoda y presets UI | Estados persistentes, navegación accesible, compatibilidad con ventana mínima y DPI |
+| W63 | Ambos | Definir estabilidad del contrato de personalización | Tokens separados de layout y estado; migración/versionado del formato documentados |
+| W64 | @IsaVonxz-type | Evaluar editor libre de layout | ADR con casos de uso, accesibilidad, costo de pruebas y criterio de aplazamiento; no implementarlo sin aprobación |
+
+### Fase 7 — Robustez, seguridad y rendimiento
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W70 | @Excentry | Resistencia de servicios/procesos | Timeouts/cancelación; cargas acotadas; no quedan hijos en escenarios de fallo |
+| W71 | @IsaVonxz-type | UI WebView2 en carga | p95 de búsqueda/controles, scroll, listas y artwork documentados en 1k/10k/50k |
+| W72 | @Excentry | Test prolongado | 8 h en hardware acordado; memoria/handles/procesos sin crecimiento sostenido inexplicado |
+| W73 | @IsaVonxz-type | Accesibilidad y ventanas Windows | DPI 100–200 %, monitores, teclado, Narrator, foco y restauración comprobados |
+| W74 | @Excentry | Revisión seguridad/dependencias nativas | DLL search order, orígenes de binarios, ACL, secretos y tools revisados; críticos resueltos |
+| W75 | Ambos | Actualización fallida y recuperación de datos | Reintento/rollback probado con estado anterior; pérdida de datos no aceptada explicada |
+
+**Presupuestos de rendimiento pendientes:** controles locales p95 <100 ms; búsqueda p95 <100 ms y sin bloqueo perceptible del hilo UI; recursos absolutos después de baseline. Acordar hardware y método antes de medir W71; no bloquea el inicio de W10–W12.
+
+### Fase 8 — Empaquetado, operación y release
+
+| ID | Responsable | Tarea | Aceptación |
+| --- | --- | --- | --- |
+| W80 | @Excentry | Verificar `tauri.windows.conf.json` efectivo | NSIS/MSI no asumen compatibilidad; arrays de config merge revisados; recurso libmpv resuelto en instalador |
+| W81 | @Excentry | Seleccionar formato inicial de paquete | Propuesta: NSIS por usuario; MSI solo si requisito justifica duplicar QA |
+| W82 | @Excentry | Pipeline candidato Windows | CI produce artefacto no publicador, commit/version/hash y logs; permisos mínimos |
+| W83 | @IsaVonxz-type | Ensayo instalar/actualizar/desinstalar | Windows 11 limpio y upgrade desde versión previa; preferencias/cache se conservan según política |
+| W84 | @Excentry | Firma, actualizador y procedencia | Identidad del fork, endpoint, Authenticode y verificación del paquete definidos; upstream no usado accidentalmente |
+| W85 | @Excentry | SBOM y revisión de licencias | DLL, codecs, FFmpeg, yt-dlp, fuentes y skins inventariados; obligaciones atendidas antes de publicar |
+| W86 | Ambos | Aprobación del release candidate | Artefacto exacto instalado y verificado por ambos; limitaciones y rollback documentados |
+
+**Puerta de release:** ningún push rutinario debe crear versión/tag/release pública. Separar workflow de CI y workflow de publicación; publicar solo con aprobación explícita y permisos mínimos. Firma ausente significa build interno/no estable, no “firmado después”.
+
+## 6. Validación y operación
+
+### Checks por pull request
+
+- Formato Rust y tests focalizados.
+- `pnpm check`, `pnpm build` y nueve suites puras de frontend.
+- Build Windows de los paquetes seleccionados; no usar `--all-features` sin motivo.
+- Pruebas de core/contrato y regresiones Linux para cambios compartidos.
+- Comprobación de permisos Tauri y registro de comandos al cambiar host.
+- Chequeos de seguridad/licencia para nuevas DLL y ejecutables.
+- No exponer secretos de firma ni permisos de publicación a PRs sin confianza.
+
+### Checks de candidato
+
+- Ejecución interactiva en Windows 11; WebView2 y audio real.
+- Proveedores con cuentas autorizadas y limitaciones registradas.
+- Prueba de carga prolongada, suspensión/reanudación y dispositivos de audio.
+- Installer desde Windows limpio sin Rust/Node/mpv en PATH.
+- Upgrade, rollback, uninstall y recuperación de estado.
+
+Runner CI no reemplaza una máquina Windows 11 con sesión interactiva y dispositivos de audio. Si una prueba depende de eso, reportarla como **pendiente de laboratorio**, no como pass.
+
+### Métricas requeridas
+
+Registrar commit, build, Windows 11 edition/version, CPU/RAM, toolchain, WebView2, libmpv/DLL, proveedor/cuenta de prueba sin datos personales, configuración, estado de caché, repeticiones y resultado.
+
+Medir el árbol completo: aplicación, WebView2 renderer/GPU, mpv y downloader. Working set/private bytes Windows no se comparan directamente con PSS Linux.
+
+## 7. Riesgos, dependencias y decisiones abiertas
+
+| Riesgo/decisión | Dueño | Resolver en | Condición de salida |
+| --- | --- | --- | --- |
+| Publicación Linux automática al push | @Excentry | Fase 0 | Pull requests/merges rutinarios no publican artefactos |
+| Linkage/DLL y licencia de libmpv | @Excentry | Fases 1–2 | Build y redistribución reproducibles |
+| Transporte Spotify no Unix | @Excentry | Fase 2 | Transporte probado o exclusión aprobada y visible |
+| Bridge/login WebView2 | @IsaVonxz-type | Fase 2 | Flujo real de login probado, timeout y cancelación |
+| Paridad entre métodos daemon/Tauri | @IsaVonxz-type | Fases 0–3 | Matriz contractual y funciones asignadas |
+| Acceso SoundCloud/browser auth en Windows | @Excentry + @IsaVonxz-type | Fase 5 | Flujo soportado aprobado; no copiar import Linux sin análisis |
+| Identidad/actualizador del fork | Ambos | Antes de distribución externa | Updater y publicación pública fuera de Alpha; antes de distribuir, identidad/ID de app/endpoint/licencias definidos y datos aislados de upstream |
+| Scope de personalización | @IsaVonxz-type | Fases 0 y 6 | MVP de tokens y presets; editor libre aplazado por defecto |
+| UI predeterminada conserva Ryotunes | @IsaVonxz-type | Fase 6 | Baseline visual comparado y aceptación de ambos |
+| Presupuesto de rendimiento absoluto | Ambos | Fase 1/7 | Hardware de referencia y umbrales aprobados |
+
+### Primer sprint de planificación
+
+**@Excentry:** puede iniciar W01 y W10–W12; W20 continúa siendo su prueba de reproducción/controles. La selección/receta de libmpv no está declarada completada por este roadmap. Primero inspeccionar workflows/estado y fijar entorno/grafo; no cambiar lockfiles ni empaquetado sin evidencia.
+
+**@IsaVonxz-type:** decisiones W00/W02 cerradas y baseline W04 publicada; continúan W21/W26, la verificación runtime Linux de diferencias W14 y el diseño de la UI. No sobrescribir cambios documentales existentes.
+
+**Ambos:** x64, host integrado, alcance Alpha y política de no publicación externa en Alpha ya acordados. Identidad/updater y requisitos de release siguen siendo gate antes de distribución externa.
+
+### Criterio general de tarea completada
+
+- Cambios limitados a archivos bajo propiedad anunciada.
+- Criterios de aceptación demostrados, no inferidos de comentarios o compilación parcial.
+- Checks y entorno exactos registrados; omisiones o fallos no se ocultan.
+- Revisión cruzada terminada.
+- Compatibilidad y limitaciones actualizadas, sin presentar lo planeado como soportado.
+
+## Nota de estado
+
+Este documento es un roadmap propuesto. No confirma que toolchain, audio, login, CI Windows, configuraciones de Tauri o instaladores estén funcionando. Antes de iniciar cada tarea, volver a comprobar el estado del repositorio y respetar los cambios existentes.
