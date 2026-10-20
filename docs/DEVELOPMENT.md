@@ -26,7 +26,7 @@ The inspected repository contains the inherited Linux-first application, its Rus
 ### What has and has not been validated
 
 - No Ryotune-Omni releases were published on this project's GitHub repository.
-- The inherited CI validates Linux and web frontend paths; it has no Windows or Android build job.
+- Daily CI runs on Windows for the Svelte frontend and selected portable Rust crates. It does not compile the full desktop application or validate playback; no Android CI job exists.
 - No Windows or Android application was compiled, run, or validated as part of this documentation review.
 - UI framework selection, target OS versions, Android ABIs, native-library packaging, and feature parity remain open engineering decisions.
 
@@ -147,7 +147,7 @@ The existing Tauri configuration, mobile annotation, DLL ignore entries and Wind
 
 ### Inherited Linux development reference
 
-The existing build system is a Cargo workspace plus a separate pnpm project in `ui/`. CI declares stable Rust, Node 22 and pnpm 11; the Spotify crate uses Rust edition 2024, so the older `rust-version` declared by the Tauri package alone is not a sufficient workspace toolchain guide. Linux builds require native dependencies including GTK/WebKitGTK and libmpv; the QML runtime additionally requires Quickshell and Ryoku modules.
+The existing build system is a Cargo workspace plus a separate pnpm project in `ui/`. Daily CI uses Windows Server 2025, stable Rust, Node 22 and pnpm 11 to check the frontend, Rust formatting, and selected portable crates. The Spotify crate uses Rust edition 2024, so the older `rust-version` declared by the Tauri package alone is not a sufficient workspace toolchain guide. The release validator still runs on Ubuntu and Linux builds require native dependencies including GTK/WebKitGTK and libmpv; the QML runtime additionally requires Quickshell and Ryoku modules.
 
 Use the following existing documents and executable configurations as **upstream-oriented references**, not verified Windows/Android instructions:
 
@@ -158,7 +158,7 @@ Use the following existing documents and executable configurations as **upstream
 
 These documents contain historical Linux assumptions and some stale lifecycle descriptions. Consult current code when they conflict: the Linux launcher has no Tauri fallback, and the daemon's default idle grace is 60 seconds, subject to activity and subscribers. Do not run separate playback hosts against the same application data.
 
-Existing test sources include Rust unit tests, Node-run `ui/src/lib/*.check.ts` regressions, and separate QtTest files in `client/tests`. Linux CI separates an environment-sensitive real-libmpv test from the main suite; QML tests are not currently a CI job. These are inherited checks, not proof of target-platform compatibility.
+Existing test sources include Rust unit tests, Node-run `ui/src/lib/*.check.ts` regressions, and separate QtTest files in `client/tests`. Daily Windows CI runs only selected portable Rust crate tests; it does not validate the inherited Linux daemon, libmpv playback, or QML client. The tag-release validator still runs Linux checks, and QML tests are not currently a CI job. Windows CI passing is not proof that the Windows application port works.
 
 > **Release safety:** The upstream Ryotunes workflow is archived in `.github/legacy-workflows/ryotunes-release.yml`. The active Ryotune-Omni tag-triggered workflow validates releases but refuses to publish until at least one platform build target is implemented and validated. See [RELEASING.md](RELEASING.md).
 

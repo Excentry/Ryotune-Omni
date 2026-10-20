@@ -51,13 +51,14 @@ is impossible unless every earlier stage succeeded.
 
 ### CI (`.github/workflows/ci.yml`)
 
-Runs on pull requests and pushes to `main` with `contents: read` only. It
-performs only checks the current tree supports: frontend type/behaviour checks
-and build, `cargo fmt`, the workspace test suite, the environment-sensitive
-real-libmpv regression (tolerated timeout, exactly as upstream), and the
-release guard (`scripts/release-check.sh`). CI never publishes anything and
-must stay that way. Windows and Android jobs are deliberately absent until
-those ports have verified builds (see "Platform readiness").
+Runs on pull requests and pushes to `main` with `contents: read` only, on a
+Windows Server 2025 runner. It checks the Svelte frontend, Rust formatting, and
+tests for the currently portable crates (`innertube`, `listen-protocol`,
+`ryotunes-protocol`, `ryotunes-soundcloud`, `ryotunes-tidal`, and `sync-server`).
+It does not compile the full app, daemon, player, or Windows Tauri host, and is
+not evidence of a working Windows port. Linux-specific playback, daemon, and
+release-guard checks are not part of daily CI. CI never publishes anything and
+must stay that way.
 
 ### Release (`.github/workflows/release.yml`)
 
@@ -72,7 +73,9 @@ explicit existing `tag` input (for validating or re-publishing). Jobs:
    - a tag push **fails** with a clear error, before anything is published;
    - a manual dispatch runs the documented **non-publishing validation
      path**: everything is checked, nothing is released.
-2. **validate** — the same checks CI runs, against the tagged tree.
+2. **validate** — runs the Linux release-validation suite against the tagged
+   tree. This remains separate from daily Windows CI while the release
+   packaging and platform target are not yet ported.
 3. **build** — one job per enabled target from the matrix in `preflight`. The
    matrix is currently empty; a target may only be added together with its
    real, verified build steps. A target added without steps fails loudly (the

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added project overview, developer, compatibility, and licensing documentation with Ryotune-Omni branding.
+- Replaced daily Linux CI with Windows checks for the frontend and selected portable Rust crates; the Linux release validator remains unchanged.
 
 ## v1.2.3 - 2026-10-19
 

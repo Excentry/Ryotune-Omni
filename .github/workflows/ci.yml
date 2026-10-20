@@ -14,16 +14,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  linux:
-    runs-on: ubuntu-24.04
+  windows:
+    runs-on: windows-2025
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libmpv-dev
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -44,32 +39,16 @@ jobs:
         working-directory: ui
         run: pnpm install --frozen-lockfile
 
-      - name: Frontend checks
+      - name: Frontend type checks
         working-directory: ui
-        run: pnpm check && pnpm build
+        run: pnpm check
+
+      - name: Frontend build
+        working-directory: ui
+        run: pnpm build
 
       - name: Rust format
         run: cargo fmt --all -- --check
 
-      - name: Rust tests
-        run: cargo test --workspace --locked -- --skip mpv_keeps_the_gain_through_pitch_changes_and_failures
-
-      - name: Real libmpv regression
-        timeout-minutes: 2
-        run: |
-          set +e
-          timeout 30s cargo test --locked -p player mpv_keeps_the_gain_through_pitch_changes_and_failures -- --nocapture --test-threads=1
-          status=$?
-          set -e
-
-          if [ "$status" -eq 124 ]; then
-            echo "::warning title=libmpv integration timeout::The real-libmpv pitch rollback test timed out on this GitHub runner. Deterministic player tests passed; the Arch release workflow intentionally excludes this environment-sensitive integration case."
-            exit 0
-          fi
-
-          exit "$status"
-
-      - name: Release guard
-        env:
-          RYOTUNES_STATIC_ONLY: "1"
-        run: ./scripts/release-check.sh
+      - name: Portable Rust crate tests
+        run: cargo test --locked -p innertube -p listen-protocol -p ryotunes-protocol -p ryotunes-soundcloud -p ryotunes-tidal -p sync-server
