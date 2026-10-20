@@ -168,18 +168,33 @@ upstream history is credited to upstream, not claimed as fork work.
 Configurable only in GitHub repository settings (not through repository
 files); the maintainer should enable:
 
-- Branch protection or a ruleset on `main`: require pull requests with review
-  before merge, require the CI checks (once listed as required status checks),
-  and block force pushes and branch deletion.
-- Tag protection rules for `v*` tags, restricting who may create release tags
-  and prohibiting tag deletion/updates once published.
-- Restrict release publishing to maintainers (`contents: write` is granted to
-  the publish job only; organization/repository collaborator settings decide
-  who may run it).
-- Keep "Workflow permissions" at read-only default (already the case) and
+- Protect `main` with a branch ruleset: require pull requests, one approval
+  from the other maintainer, approval of the most recent push, and the CI
+  status check. Do not allow force pushes or branch deletion. In a two-person
+  team, the PR author cannot provide the required review; if the other
+  maintainer is unavailable, defer the merge rather than bypassing protection.
+- Require the CI check after it has completed successfully at least once, and
+  select the exact check name shown by GitHub for `.github/workflows/ci.yml`.
+  Revisit the required-check list when CI jobs are renamed or split. Do not
+  require Windows runtime or Linux desktop checks until corresponding runners
+  actually execute them.
+- Protect `v*` tags with a tag ruleset: limit tag creation to maintainers and
+  prohibit update/deletion. Create release tags only from reviewed commits on
+  `main`; the release workflow separately rejects tags outside default-branch
+  history.
+- Keep release publishing maintainer-only. The workflow token remains
+  read-only by default; only the `publish` job receives `contents: write`.
+  Restrict who can run `workflow_dispatch` through repository access, and
   require approval for first-time contributors' workflow runs.
+- Do not configure a production deployment environment or enable a release
+  target until that platform has a reproducible validated build. If a protected
+  release environment is introduced, restrict deployment branches to `v*`
+  tags and require approval from the other maintainer.
 
-None of these are changed by this repository alone; they are manual follow-up.
+These settings are not changed by this repository. The maintainer must review
+and apply them in GitHub repository settings; record the ruleset/branch
+protection name and date here or in the operations log once verified. Until
+then, treat them as recommendations, not active controls.
 
 ## Scripts map
 
