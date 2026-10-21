@@ -17,7 +17,7 @@ jobs:
           script: |
             const ASSIGN_TO = {
               excentry: 'IsaVonxz-type',
-              isavonxz-type: 'Excentry',
+              'isavonxz-type': 'Excentry',
             };
             const opener = context.payload.pull_request.user.login;
             const assignee = ASSIGN_TO[opener.toLowerCase()];
