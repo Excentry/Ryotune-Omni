@@ -328,7 +328,7 @@ struct LrclibTrack {
 }
 
 /// LRCLIB asks integrations to identify themselves via User-Agent.
-const LRCLIB_UA: &str = concat!("Ryotunes/", env!("CARGO_PKG_VERSION"), " desktop");
+const LRCLIB_UA: &str = concat!("Ryotunes Omni/", env!("CARGO_PKG_VERSION"), " desktop");
 
 /// A GET to LRCLIB, carrying the two things this API wants from us: who we are, and a bound on how
 /// long we will wait. Both used to be baked into a client of our own.

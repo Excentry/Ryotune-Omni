@@ -4,7 +4,7 @@
 pkgname=ryotune-omni
 pkgver=1.2.3
 pkgrel=1
-pkgdesc="Ryotune Omni — independent music player"
+pkgdesc="Ryotunes Omni — independent music player"
 url='https://github.com/Excentry/Ryotune-Omni'
 arch=('x86_64')
 license=('GPL-3.0-or-later')

@@ -112,7 +112,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         visible: root.loading || !Daemon.connected || root.error !== ""
-        text: !Daemon.connected ? "Reconnect to Ryotunes to change download preferences."
+        text: !Daemon.connected ? "Reconnect to Ryotunes Omni to change download preferences."
             : root.error || "Loading download preferences…"
         color: root.error ? Style.accent : Tokens.inkMuted
         font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap

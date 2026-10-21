@@ -561,7 +561,7 @@ Item {
                     Icon { name: "alert"; size: Style.fs.md; color: Style.alert }
                     Text {
                         Layout.fillWidth: true
-                        text: "Disconnected from Ryotunes. This list will update when it reconnects. Interrupted downloads can be retried."
+                        text: "Disconnected from Ryotunes Omni. This list will update when it reconnects. Interrupted downloads can be retried."
                         color: Tokens.inkDim
                         font.family: Style.fontUi
                         font.pixelSize: Style.fs.sm
@@ -614,7 +614,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: Daemon.connected
                         ? "Save a track with the download arrow beside its heart in the player. Downloads keep running when you close the window."
-                        : "Your download history will update when Ryotunes reconnects."
+                        : "Your download history will update when Ryotunes Omni reconnects."
                     color: Tokens.inkMuted
                     font.family: Style.fontUi
                     font.pixelSize: Style.fs.md

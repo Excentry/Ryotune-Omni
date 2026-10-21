@@ -202,7 +202,7 @@ async fn listen(address: &str) -> Result<String> {
         .context("the OAuth redirect request had no target")?;
     let redirect = format!("http://localhost{target}");
 
-    let message = "Ryotunes has your Spotify authorization. You can close this tab.";
+    let message = "Ryotunes Omni has your Spotify authorization. You can close this tab.";
     let response =
         format!("HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}", message.len(), message);
     let _ = stream.get_mut().write_all(response.as_bytes()).await;

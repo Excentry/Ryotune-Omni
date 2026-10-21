@@ -1912,8 +1912,8 @@ fn import_playlist_file(params: &Value) -> Result<Value, ErrorBody> {
         return Err(err("That playlist file is too large."));
     }
     let bytes = std::fs::read(&path).map_err(err)?;
-    let mut transfer: PlaylistTransfer =
-        serde_json::from_slice(&bytes).map_err(|_| err("That is not a Ryotunes playlist file."))?;
+    let mut transfer: PlaylistTransfer = serde_json::from_slice(&bytes)
+        .map_err(|_| err("That is not a Ryotunes Omni playlist file."))?;
     if transfer.version != 1 || transfer.items.len() > 5_000 {
         return Err(err("That playlist file version or size is not supported."));
     }
@@ -2320,7 +2320,7 @@ fn transfer_path(mut path: std::path::PathBuf) -> Result<std::path::PathBuf, Str
             Ok(path)
         }
         Some(ext) if ext == "json" => Ok(path),
-        _ => Err("Ryotunes playlist files must end in .json".into()),
+        _ => Err("Ryotunes Omni playlist files must end in .json".into()),
     }
 }
 

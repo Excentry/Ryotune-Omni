@@ -361,7 +361,7 @@ Rectangle {
                         spacing: 1
                         Text {
                             Layout.fillWidth: true
-                            text: "RYOTUNES"
+                            text: "RYOTUNES OMNI"
                             color: Tokens.ink
                             font.family: Style.fontUi
                             font.pixelSize: Style.fs.md

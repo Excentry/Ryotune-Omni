@@ -205,7 +205,7 @@
 			{/if}
 			<p class="text-xs text-muted-foreground">
 				{t(local
-					? 'Artwork is copied into Ryotunes storage on this device. Square JPEG or PNG works best.'
+					? 'Artwork is copied into Ryotunes Omni storage on this device. Square JPEG or PNG works best.'
 					: 'Artwork applies here at once and uploads to YouTube Music in the background. Square JPEG or PNG works best.')}
 			</p>
 			<Dialog.Footer>

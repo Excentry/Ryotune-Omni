@@ -3,7 +3,7 @@ name = "ryotunes-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ryotune Omni daemon command-line client."
+description = "Ryotunes Omni daemon command-line client."
 
 [[bin]]
 name = "ryotune-omni-cli"

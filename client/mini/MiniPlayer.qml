@@ -157,7 +157,7 @@ Item {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: (root.now && root.now.artists) ? root.now.artists : "Ryotunes is ready"
+                        text: (root.now && root.now.artists) ? root.now.artists : "Ryotunes Omni is ready"
                         color: Qt.rgba(1, 1, 1, 0.70)
                         font.family: Style.fontUi
                         font.pixelSize: 10
@@ -214,7 +214,7 @@ Item {
                         spacing: 8
                         Rectangle { Layout.preferredWidth: 17; Layout.preferredHeight: 1; color: Tokens.inkDim; opacity: 0.58 }
                         Text {
-                            text: "力 RYOTUNES"
+                            text: "力 RYOTUNES OMNI"
                             color: Tokens.inkDim
                             font.family: Style.fontUi
                             font.pixelSize: 8
@@ -286,7 +286,7 @@ Item {
                             tip: "Like"
                             onClicked: root.toggleLike()
                         }
-                        IconButton { icon: "rail-expand"; iconSize: 16; diameter: 32; tip: "Open full Ryotunes"; onClicked: root.maximize() }
+                        IconButton { icon: "rail-expand"; iconSize: 16; diameter: 32; tip: "Open full Ryotunes Omni"; onClicked: root.maximize() }
                     }
                 }
                 Rectangle {
@@ -336,7 +336,7 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: (root.now && root.now.artists) ? root.now.artists : "Ryotunes is ready"
+                                text: (root.now && root.now.artists) ? root.now.artists : "Ryotunes Omni is ready"
                                 color: Tokens.inkMuted
                                 font.family: Style.fontUi
                                 font.pixelSize: 11

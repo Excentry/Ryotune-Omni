@@ -27,7 +27,7 @@ const IDLE_EXIT_GRACE: Duration = Duration::from_secs(5 * 60);
 #[cfg(target_os = "linux")]
 const RYOTUNES_APP_ID: &str = "dev.excentry.ryotune-omni";
 #[cfg(target_os = "linux")]
-const RYOTUNES_MAIN_TITLE: &str = "Ryotune Omni";
+const RYOTUNES_MAIN_TITLE: &str = "Ryotunes Omni";
 
 /// Ryoku v2.3 installs a persistent `hl.window_rule` drop-in through the Arch replacement package,
 /// exactly like Ryoku Settings/Ryowalls. Do not append transient `windowrulev2` values at runtime:
@@ -382,7 +382,7 @@ pub fn schedule_idle_exit(app: &AppHandle) {
         if !idle_exit_eligible(is_background_mode(), has_ui(&handle), playing) {
             return;
         }
-        tracing::info!("background playback is inactive; exiting idle Ryotunes process");
+        tracing::info!("background playback is inactive; exiting idle Ryotunes Omni process");
         request_quit(&handle);
     });
 }

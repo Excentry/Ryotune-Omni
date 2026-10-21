@@ -4098,7 +4098,7 @@ fn loudness_gain(loudness_db: Option<f64>) -> Option<f64> {
 /// "Artist – Title" for mpv's per-file media title (what PipeWire and mpv's own metadata show).
 fn media_title(title: &str, artists: &str) -> String {
     match (title.trim(), artists.trim()) {
-        ("", "") => "Ryotunes".to_owned(),
+        ("", "") => "Ryotunes Omni".to_owned(),
         (t, "") => t.to_owned(),
         ("", a) => a.to_owned(),
         (t, a) => format!("{a} – {t}"),
@@ -4332,12 +4332,18 @@ impl AppState {
 mod tests {
     use super::{
         append_page, backfill_metadata, drop_duplicates, enqueue_at, format_duration,
-        guest_insert_index, is_mix, loudness_gain, merge_radio, next_index, parse_duration_ms,
-        persist_fingerprint, queue_event_payload, queue_fingerprint, radio_seed_for, read_personal,
-        shuffle_new_queue, shuffle_upcoming, splice_radio_into, spotify_mpv_options, unshuffled,
-        upcoming_queued, validate_personal_blob, QueueState, RepeatMode, PERSONAL_JSON_KEY,
+        guest_insert_index, is_mix, loudness_gain, media_title, merge_radio, next_index,
+        parse_duration_ms, persist_fingerprint, queue_event_payload, queue_fingerprint,
+        radio_seed_for, read_personal, shuffle_new_queue, shuffle_upcoming, splice_radio_into,
+        spotify_mpv_options, unshuffled, upcoming_queued, validate_personal_blob, QueueState,
+        RepeatMode, PERSONAL_JSON_KEY,
     };
     use crate::db::Db;
+
+    #[test]
+    fn media_metadata_uses_the_omni_product_name_when_track_fields_are_empty() {
+        assert_eq!(media_title("", ""), "Ryotunes Omni");
+    }
 
     #[test]
     fn personal_round_trips_and_rejects_bad_blobs() {

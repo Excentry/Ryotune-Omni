@@ -59,7 +59,7 @@ impl Tray for RyotunesTray {
     }
 
     fn title(&self) -> String {
-        "Ryotune Omni".into()
+        "Ryotunes Omni".into()
     }
 
     /// The packaged `ryotune-omni` hicolor icon (installed by the PKGBUILD); the StatusNotifierItem
@@ -82,7 +82,7 @@ impl Tray for RyotunesTray {
             })
         };
         vec![
-            item("Show Ryotune Omni", "show"),
+            item("Show Ryotunes Omni", "show"),
             MenuItem::Separator,
             item(if self.playing { "Pause" } else { "Play" }, "play_pause"),
             item("Next", "next"),
