@@ -6,6 +6,7 @@
 //! [`MediaControlEvent`]s that the host drains into `AppState`. The two share the same commands the
 //! UI uses, so they never drift.
 
+use std::num::NonZeroUsize;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,6 +20,25 @@ use crate::host::EventSink;
 /// pattern-matches these to route OS media-key presses, and cannot depend on `souvlaki` directly
 /// without pulling a second copy of the crate; sourcing them from the core keeps one type.
 pub use souvlaki::{MediaControlEvent, MediaPosition, SeekDirection};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MediaWindowHandle(NonZeroUsize);
+
+impl MediaWindowHandle {
+    pub fn from_raw_value(value: usize) -> Option<Self> {
+        NonZeroUsize::new(value).map(Self)
+    }
+
+    #[cfg(any(test, target_os = "windows"))]
+    fn raw_value(self) -> usize {
+        self.0.get()
+    }
+}
+
+#[cfg(any(test, target_os = "windows"))]
+fn hwnd_ready(window: Option<MediaWindowHandle>) -> bool {
+    window.is_some_and(|handle| handle.raw_value() != 0)
+}
 
 /// Update messages: app → media-controls owner thread.
 enum MediaUpdate {
@@ -87,10 +107,18 @@ impl MediaHandle {
 pub fn spawn(
     _sink: Arc<dyn EventSink>,
     commands: UnboundedSender<MediaControlEvent>,
+    window: Option<MediaWindowHandle>,
 ) -> Option<MediaHandle> {
+    #[cfg(target_os = "windows")]
+    if !hwnd_ready(window) {
+        tracing::warn!("Windows media controls unavailable: main window HWND is missing");
+        return None;
+    }
+
     let (tx, rx) = channel::<MediaUpdate>();
-    let spawned =
-        std::thread::Builder::new().name("media-controls".into()).spawn(move || run(commands, rx));
+    let spawned = std::thread::Builder::new()
+        .name("media-controls".into())
+        .spawn(move || run(commands, rx, window));
     match spawned {
         Ok(_) => Some(MediaHandle { tx }),
         Err(e) => {
@@ -102,10 +130,26 @@ pub fn spawn(
 
 // `duration` is reset per track in the Metadata arm; the lint can't see the loop's later reads.
 #[allow(unused_assignments)]
-fn run(commands: UnboundedSender<MediaControlEvent>, rx: std::sync::mpsc::Receiver<MediaUpdate>) {
-    // The core owns no window handle; on Windows the host would supply one for SMTC. Linux/MPRIS
-    // ignores it.
-    let hwnd = None;
+fn run(
+    commands: UnboundedSender<MediaControlEvent>,
+    rx: std::sync::mpsc::Receiver<MediaUpdate>,
+    window: Option<MediaWindowHandle>,
+) {
+    #[cfg(target_os = "windows")]
+    let hwnd = match window.filter(|handle| hwnd_ready(Some(*handle))) {
+        Some(handle) => Some(handle.raw_value() as *mut std::ffi::c_void),
+        None => {
+            tracing::warn!(
+                "Windows media controls stopped because the main window HWND is unavailable"
+            );
+            return;
+        }
+    };
+    #[cfg(not(target_os = "windows"))]
+    let hwnd = {
+        let _ = window;
+        None
+    };
 
     let config = PlatformConfig { dbus_name: "ryotune-omni", display_name: "Ryotunes Omni", hwnd };
     let mut controls = match MediaControls::new(config) {
@@ -190,4 +234,30 @@ fn apply_metadata(
         cover_url: cover.as_deref(),
         duration: duration.map(Duration::from_secs_f64),
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{hwnd_ready, MediaWindowHandle};
+
+    #[test]
+    fn media_window_handle_rejects_null_and_preserves_nonzero_values() {
+        assert!(MediaWindowHandle::from_raw_value(0).is_none());
+        let handle = MediaWindowHandle::from_raw_value(0x1234).unwrap();
+        assert_eq!(handle.raw_value(), 0x1234);
+        assert!(!hwnd_ready(None));
+        assert!(hwnd_ready(Some(handle)));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn missing_main_window_handle_disables_smtc_without_panicking() {
+        struct Sink;
+        impl crate::host::EventSink for Sink {
+            fn emit(&self, _: &'static str, _: serde_json::Value) {}
+        }
+
+        let (events, _receiver) = tokio::sync::mpsc::unbounded_channel();
+        assert!(super::spawn(std::sync::Arc::new(Sink), events, None).is_none());
+    }
 }

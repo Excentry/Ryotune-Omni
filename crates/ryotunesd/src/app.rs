@@ -133,7 +133,7 @@ pub fn build(
 
     // OS media controls (MPRIS). Presses arrive over `media_rx`; the pump drains them into AppState.
     let (media_tx, media_rx) = tokio::sync::mpsc::unbounded_channel();
-    let media = media::spawn(sink_dyn.clone(), media_tx);
+    let media = media::spawn(sink_dyn.clone(), media_tx, None);
 
     let discord = discord::spawn(
         db.get_setting("discord_rpc").as_deref() == Some("true"),

@@ -93,7 +93,7 @@ Linux integrations include MPRIS/D-Bus media controls, StatusNotifierItem tray s
 
 ### Windows: planned approach
 
-The existing Tauri path is worth evaluating before choosing a replacement UI. `src-tauri/src/main.rs` invokes the Tauri application on non-Linux targets, and `src-tauri/src/taskbar.rs` contains Windows thumbnail-toolbar integration. These are inherited implementation points, **not tested Windows support**. Core media controls use souvlaki, but the shared-core path currently supplies no Windows window handle, so media integration needs explicit validation.
+The existing Tauri path is worth evaluating before choosing a replacement UI. `src-tauri/src/main.rs` invokes the Tauri application on non-Linux targets, and `src-tauri/src/taskbar.rs` contains Windows thumbnail-toolbar integration. These are inherited implementation points, **not tested Windows support**. The Tauri setup now obtains the `main` HWND and passes a non-null opaque handle to the souvlaki owner thread; missing HWND disables that optional integration instead of panicking. This change has only been built/tested on Linux: Windows COM/SMTC, HWND lifecycle and WebView2 remain unverified. WebView2 itself is supplied by Tauri/Wry; this repo has no WebView2-specific API or integration harness.
 
 Windows work must investigate:
 
