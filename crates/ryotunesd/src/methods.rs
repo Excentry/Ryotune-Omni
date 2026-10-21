@@ -3,7 +3,8 @@
 //! `ui/src/lib/api.ts` sends. The bodies here are ports of those command bodies: the seams that
 //! needed Tauri (native file/folder dialogs) take an explicit `path` over the socket instead, and
 //! the ones that only used the `AppHandle` for asset-scope allow-listing drop it (the daemon serves
-//! no webview assets). Plus the control methods `hello`, `subscribe`, `quit` and `sign_in`.
+//! no webview assets). Plus the control methods `hello`, `subscribe_events` (with `subscribe` as a
+//! compatibility alias), `set_channel_subscribed`, `quit` and `sign_in`.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -28,6 +29,7 @@ use ryotunes_protocol::{ErrorBody, PROTOCOL_VERSION};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
+use crate::auth_events;
 use crate::server::{Connection, Dispatch};
 
 pub struct Methods {
@@ -116,16 +118,13 @@ async fn complete_soundcloud_sign_in(
             auth.username = Some(user.username.clone());
             persist_soundcloud_auth(st, Some(&auth));
             st.soundcloud.set_auth(Some(auth));
-            st.emit("soundcloud-auth", json!({ "state": "signed_in", "name": user.username }));
+            st.emit("soundcloud-auth", auth_events::soundcloud_signed_in(&user.username));
         }
         Err(e) => {
             st.soundcloud.set_auth(None);
             st.emit(
                 "soundcloud-auth",
-                json!({
-                    "state": "error",
-                    "message": format!("SoundCloud sign-in failed: {e}"),
-                }),
+                auth_events::soundcloud_error(&format!("SoundCloud sign-in failed: {e}")),
             );
         }
     }
@@ -161,6 +160,20 @@ fn spotify_signed_out() -> ErrorBody {
     ErrorBody { code: "spotify_signed_out".into(), message: "Sign in to Spotify".into() }
 }
 
+enum SpotifyAddTarget {
+    Liked,
+    Playlist(String),
+}
+
+fn spotify_add_route(playlist_id: &str) -> Option<SpotifyAddTarget> {
+    let pid = playlist_id.strip_prefix("spotify:playlist:")?;
+    if pid == "liked" {
+        Some(SpotifyAddTarget::Liked)
+    } else {
+        Some(SpotifyAddTarget::Playlist(pid.to_owned()))
+    }
+}
+
 /// A SoundCloud crate error as the daemon's error body.
 fn soundcloud_err(e: impl ToString) -> ErrorBody {
     ErrorBody { code: "soundcloud".into(), message: e.to_string() }
@@ -187,7 +200,7 @@ impl Dispatch for Methods {
                 let version = arg(&params, "version")?;
                 ok(ryotunes_core::update::install_update(version).await.map_err(err)?)
             }
-            "subscribe" => {
+            "subscribe" | "subscribe_events" => {
                 conn.subscribe();
                 let provider = st.spotify.selected().as_str();
                 let spotify = spotify_status_json(st).await;
@@ -203,6 +216,13 @@ impl Dispatch for Methods {
                     "tidal": tidal_status_json(st),
                     "downloads": self.downloads.snapshot(),
                 }))
+            }
+            "set_channel_subscribed" => {
+                let channel_id = arg::<String>(&params, "channelId")?;
+                let subscribed = arg::<bool>(&params, "subscribed")?;
+                let client = require_login(st).map_err(err)?;
+                st.it.subscribe(client, &channel_id, subscribed).await.map_err(err)?;
+                null()
             }
             "quit" => {
                 let _ = self.quit.send(());
@@ -433,7 +453,7 @@ impl Dispatch for Methods {
             "tidal_sign_out" => {
                 st.tidal.sign_out();
                 st.db.delete_setting(ryotunes_core::state::TIDAL_AUTH_KEY);
-                st.emit("tidal-auth", json!({ "state": "signed_out" }));
+                st.emit("tidal-auth", auth_events::tidal_signed_out());
                 ok(json!({ "signedIn": false }))
             }
             "tidal_set_credentials" => {
@@ -461,7 +481,7 @@ impl Dispatch for Methods {
                     // A flow is already waiting on the browser: hand the same URL out again.
                     let url = SPOTIFY_AUTH_URL.lock().unwrap_or_else(|e| e.into_inner()).clone();
                     if let Some(url) = url {
-                        st.emit("spotify-auth", json!({ "state": "url", "url": url }));
+                        st.emit("spotify-auth", auth_events::spotify_url(&url));
                     }
                     return ok(json!({ "started": true }));
                 }
@@ -474,7 +494,7 @@ impl Dispatch for Methods {
                         .sign_in(move |url| {
                             *SPOTIFY_AUTH_URL.lock().unwrap_or_else(|e| e.into_inner()) =
                                 Some(url.clone());
-                            emitter.emit("spotify-auth", json!({ "state": "url", "url": url }));
+                            emitter.emit("spotify-auth", auth_events::spotify_url(&url));
                         })
                         .await;
                     match result {
@@ -482,16 +502,15 @@ impl Dispatch for Methods {
                             let name = spotify_name(&task).await;
                             task.emit(
                                 "spotify-auth",
-                                json!({ "state": "signed_in", "name": name }),
+                                auth_events::spotify_signed_in(name.as_deref()),
                             );
                         }
                         Err(e) => {
                             task.emit(
                                 "spotify-auth",
-                                json!({
-                                    "state": "error",
-                                    "message": format!("Spotify sign-in failed: {e:#}"),
-                                }),
+                                auth_events::spotify_error(&format!(
+                                    "Spotify sign-in failed: {e:#}"
+                                )),
                             );
                         }
                     }
@@ -500,7 +519,7 @@ impl Dispatch for Methods {
             }
             "spotify_sign_out" => {
                 st.spotify.sign_out().await;
-                st.emit("spotify-auth", json!({ "state": "signed_out" }));
+                st.emit("spotify-auth", auth_events::spotify_signed_out());
                 ok(json!({ "signedIn": false }))
             }
 
@@ -707,16 +726,19 @@ impl Dispatch for Methods {
             "add_to_playlist" => {
                 let playlist_id = arg::<String>(&params, "playlistId")?;
                 let video_id = arg::<String>(&params, "videoId")?;
-                if let Some(pid) = playlist_id.strip_prefix("spotify:playlist:") {
+                if let Some(target) = spotify_add_route(&playlist_id) {
                     let client = st.spotify.client().await.ok_or_else(spotify_signed_out)?;
                     let tid = spotify_track_id(&video_id)
                         .ok_or_else(|| spotify_err("Not a Spotify track."))?;
-                    if pid == "liked" {
-                        client.set_track_saved(tid, true).await.map_err(spotify_err)?;
-                    } else {
-                        client.add_track_to_playlist(pid, tid).await.map_err(spotify_err)?;
+                    match target {
+                        SpotifyAddTarget::Liked => {
+                            client.set_track_saved(&tid, true).await.map_err(spotify_err)?;
+                        }
+                        SpotifyAddTarget::Playlist(pid) => {
+                            client.add_track_to_playlist(&pid, &tid).await.map_err(spotify_err)?;
+                        }
                     }
-                    return null();
+                    return ok(true);
                 }
                 if radio::is_radio_id(&video_id) {
                     return Err(err("Live radio stations cannot be added to song playlists."));
@@ -992,14 +1014,13 @@ impl Dispatch for Methods {
                     if !crate::browser_auth::open_in_default_browser() {
                         task.emit(
                             "soundcloud-auth",
-                            json!({
-                                "state": "error",
-                                "message": "Could not open your browser. Sign in at soundcloud.com, then press the button again.",
-                            }),
+                            auth_events::soundcloud_error(
+                                "Could not open your browser. Sign in at soundcloud.com, then press the button again.",
+                            ),
                         );
                         return;
                     }
-                    task.emit("soundcloud-auth", json!({ "state": "waiting" }));
+                    task.emit("soundcloud-auth", auth_events::soundcloud_waiting());
                     let deadline = tokio::time::Instant::now()
                         + std::time::Duration::from_secs(SC_SIGN_IN_TIMEOUT_SECS);
                     loop {
@@ -1008,10 +1029,9 @@ impl Dispatch for Methods {
                         if tokio::time::Instant::now() >= deadline {
                             task.emit(
                                 "soundcloud-auth",
-                                json!({
-                                    "state": "expired",
-                                    "message": "No SoundCloud sign-in was completed in the browser.",
-                                }),
+                                auth_events::soundcloud_expired(
+                                    "No SoundCloud sign-in was completed in the browser.",
+                                ),
                             );
                             return;
                         }
@@ -1043,20 +1063,16 @@ impl Dispatch for Methods {
                     let login = match task.tidal.device_start().await {
                         Ok(login) => login,
                         Err(e) => {
-                            task.emit(
-                                "tidal-auth",
-                                json!({ "state": "error", "message": e.to_string() }),
-                            );
+                            task.emit("tidal-auth", auth_events::tidal_error(&e.to_string()));
                             return;
                         }
                     };
                     task.emit(
                         "tidal-auth",
-                        json!({
-                            "state": "waiting",
-                            "url": login.verification_uri_complete,
-                            "code": login.user_code,
-                        }),
+                        auth_events::tidal_waiting(
+                            &login.verification_uri_complete,
+                            &login.user_code,
+                        ),
                     );
                     let deadline = tokio::time::Instant::now()
                         + std::time::Duration::from_secs(login.expires_in.max(0) as u64);
@@ -1080,11 +1096,10 @@ impl Dispatch for Methods {
                                 }
                                 task.emit(
                                     "tidal-auth",
-                                    json!({
-                                        "state": "signed_in",
-                                        "name": auth.display_name(),
-                                        "quality": auth.entitlement.ceiling().as_str(),
-                                    }),
+                                    auth_events::tidal_signed_in(
+                                        auth.display_name().as_deref(),
+                                        auth.entitlement.ceiling().as_str(),
+                                    ),
                                 );
                                 return;
                             }
@@ -1092,10 +1107,9 @@ impl Dispatch for Methods {
                                 if tokio::time::Instant::now() >= deadline {
                                     task.emit(
                                         "tidal-auth",
-                                        json!({
-                                            "state": "expired",
-                                            "message": "The TIDAL code expired before it was approved.",
-                                        }),
+                                        auth_events::tidal_expired(
+                                            "The TIDAL code expired before it was approved.",
+                                        ),
                                     );
                                     return;
                                 }
@@ -1105,18 +1119,14 @@ impl Dispatch for Methods {
                             Err(ryotunes_tidal::Error::LoginExpired) => {
                                 task.emit(
                                     "tidal-auth",
-                                    json!({
-                                        "state": "expired",
-                                        "message": "The TIDAL code expired before it was approved.",
-                                    }),
+                                    auth_events::tidal_expired(
+                                        "The TIDAL code expired before it was approved.",
+                                    ),
                                 );
                                 return;
                             }
                             Err(e) => {
-                                task.emit(
-                                    "tidal-auth",
-                                    json!({ "state": "error", "message": e.to_string() }),
-                                );
+                                task.emit("tidal-auth", auth_events::tidal_error(&e.to_string()));
                                 return;
                             }
                         }
@@ -1127,7 +1137,7 @@ impl Dispatch for Methods {
             "soundcloud_sign_out" => {
                 st.soundcloud.set_auth(None);
                 st.db.delete_setting(ryotunes_core::state::SOUNDCLOUD_AUTH_KEY);
-                st.emit("soundcloud-auth", json!({ "state": "signed_out" }));
+                st.emit("soundcloud-auth", auth_events::soundcloud_signed_out());
                 ok(json!({ "signedIn": false }))
             }
             "clear_download_history" => {
@@ -1387,11 +1397,10 @@ async fn soundcloud_home_sections(st: &Arc<AppState>) -> Option<Vec<innertube::S
                     st.db.delete_setting(ryotunes_core::state::SOUNDCLOUD_AUTH_KEY);
                     st.emit(
                         "soundcloud-auth",
-                        json!({
-                            "state": "restore_failed",
-                            "message": "Your SoundCloud session expired. Sign in again to \
+                        auth_events::soundcloud_restore_failed(
+                            "Your SoundCloud session expired. Sign in again to \
                                         see your playlists and likes.",
-                        }),
+                        ),
                     );
                 }
             }
@@ -2374,6 +2383,89 @@ mod tests {
             auto_playlist_artwork(vec!["a", "a", "b", "c", "d", "e"]),
             Some(r#"ryotunes-collage:["a","b","c","d"]"#.to_string()),
             "four distinct covers form the 2x2 collage; duplicates and extras are ignored"
+        );
+    }
+
+    #[test]
+    fn arg_reads_camel_case_keys() {
+        let params = json!({ "channelId": "UC1", "subscribed": true });
+        assert_eq!(arg::<String>(&params, "channelId").unwrap(), "UC1");
+        assert!(arg::<bool>(&params, "subscribed").unwrap());
+    }
+
+    #[test]
+    fn arg_missing_or_mistyped_keys_fail_as_bad_params() {
+        let missing = arg::<String>(&json!({}), "channelId").unwrap_err();
+        assert_eq!(missing.code, "bad_params");
+        assert!(
+            missing.message.starts_with("channelId:"),
+            "message names the key: {}",
+            missing.message
+        );
+        let mistyped = arg::<bool>(&json!({ "subscribed": "yes" }), "subscribed").unwrap_err();
+        assert_eq!(mistyped.code, "bad_params");
+        assert!(mistyped.message.starts_with("subscribed:"));
+        let wrong_shape = arg::<String>(&json!({ "channelId": 7 }), "channelId").unwrap_err();
+        assert_eq!(wrong_shape.code, "bad_params");
+    }
+
+    #[test]
+    fn opt_arg_swallows_missing_and_mistyped_but_reads_present() {
+        assert_eq!(opt_arg::<String>(&json!({}), "sort"), None);
+        assert_eq!(opt_arg::<String>(&json!({ "sort": 3 }), "sort"), None);
+        assert_eq!(opt_arg::<String>(&json!({ "sort": "newest" }), "sort").unwrap(), "newest");
+    }
+
+    #[test]
+    fn domain_errors_keep_their_codes_and_messages() {
+        let e = err("Sign in first to use this.");
+        assert_eq!(e.code, "failed");
+        assert_eq!(e.message, "Sign in first to use this.");
+        let s = spotify_signed_out();
+        assert_eq!(s.code, "spotify_signed_out");
+        assert_eq!(s.message, "Sign in to Spotify");
+        let sp = spotify_err("boom");
+        assert_eq!(sp.code, "spotify");
+        assert_eq!(sp.message, "boom");
+    }
+
+    #[test]
+    fn ok_results_serialize_to_the_declared_wire_values() {
+        assert_eq!(ok(true).unwrap(), json!(true));
+        assert_eq!(ok(false).unwrap(), json!(false));
+        assert_eq!(null().unwrap(), json!(null));
+    }
+
+    #[test]
+    fn spotify_add_route_splits_liked_from_real_playlists() {
+        assert!(matches!(
+            spotify_add_route("spotify:playlist:liked"),
+            Some(SpotifyAddTarget::Liked)
+        ));
+        match spotify_add_route("spotify:playlist:PL3xyz") {
+            Some(SpotifyAddTarget::Playlist(pid)) => assert_eq!(pid, "PL3xyz"),
+            other => panic!("expected a playlist route, got something else: {}", other.is_some()),
+        }
+        assert!(spotify_add_route("spotify:album:AL1").is_none());
+        assert!(matches!(
+            spotify_add_route("spotify:playlist:"),
+            Some(SpotifyAddTarget::Playlist(pid)) if pid.is_empty()
+        ));
+        assert!(spotify_add_route("yt:playlist:PL1").is_none());
+        assert!(spotify_add_route("").is_none());
+    }
+
+    #[test]
+    fn add_to_playlist_spotify_route_answers_true_on_success() {
+        let target = spotify_add_route("spotify:playlist:liked").unwrap();
+        let result = match target {
+            SpotifyAddTarget::Liked | SpotifyAddTarget::Playlist(_) => ok(true).unwrap(),
+        };
+        assert_eq!(result, json!(true));
+        assert_eq!(
+            ryotunes_protocol::Outgoing::Response(ryotunes_protocol::Response::ok(9, result))
+                .to_line(),
+            "{\"id\":9,\"result\":true}\n"
         );
     }
 }

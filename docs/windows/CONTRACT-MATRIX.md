@@ -1,6 +1,6 @@
 # W14 — Matriz estática de contratos Tauri / daemon
 
-Estado: inventario estático terminado con diferencias registradas. No implica runtime verificado. Fuentes principales: `ui/src/lib/api.ts`, `src-tauri/src/commands.rs`, `src-tauri/build.rs`, `crates/ryotunesd/src/methods.rs`, `client/Daemon.qml`, `client/lib/playback.js`.
+Estado: inventario estático terminado; verificación por tests automatizados añadida para los contratos de `subscribe`, `add_to_playlist`, errores wire, payloads de `queue-changed`/`queue-index`, auth events, `lastfm-state`, `lt-state`/`lt-notice` y el reducer de reproducción (ver "Verificación"). No implica runtime verificado de la aplicación. Fuentes principales: `ui/src/lib/api.ts`, `src-tauri/src/commands.rs`, `src-tauri/build.rs`, `crates/ryotunesd/src/methods.rs`, `client/Daemon.qml`, `client/lib/playback.js`.
 
 ## Convenciones
 
@@ -24,7 +24,7 @@ Estado: inventario estático terminado con diferencias registradas. No implica r
 | Letras / Last.fm | `get_lyrics(videoId:string,title:string,artists:string,album?:string,duration?:number)->Lyrics|null`; `lastfm_status()->LastfmState`; `lastfm_connect()->void`; `lastfm_disconnect()->void`. |
 | Listen Together | `lt_get_state()->LtState`; `lt_set_server_url(url:string)->void`; `lt_create_room(username:string)->void`; `lt_join_room(code:string,username:string)->void`; `lt_leave()->void`; `lt_approve_join(userId:string)->void`; `lt_reject_join(userId:string)->void`; `lt_kick(userId:string)->void`; `lt_transfer_host(userId:string)->void`; `lt_suggest(item:SongItem)->void` (Tauri command, no Svelte wrapper); `lt_approve_suggestion(id:string)->void`; `lt_reject_suggestion(id:string)->void`; `lt_request_sync()->void`. |
 
-Conteo mecánico: 96 nombres invocados por `api.ts`, todos con función Tauri registrada; `lt_suggest` es comando Tauri registrado adicional sin wrapper en `api.ts`. De los 96 nombres de UI, 92 tienen arm daemon exacto. Los otros cuatro (`frontend_ready`, `login_webview`, `open_mini`, `close_mini`) están agrupados en un arm que devuelve `client_side`; `ryoku_theme_tokens` también tiene arm pero devuelve `client_side`. `subscribe` acepta dos esquemas/semánticas incompatibles. Por tanto, coincidencia de nombre no equivale a paridad: 90 métodos son coincidencias funcionales candidatas, 5 son client-side/no soportados por ese host y uno (`subscribe`) colisiona semánticamente.
+Conteo mecánico: 96 nombres invocados por `api.ts`, todos con función Tauri registrada; `lt_suggest` es comando Tauri registrado adicional sin wrapper en `api.ts`. De los 96 nombres de UI, 92 tienen arm daemon exacto. Los otros cuatro (`frontend_ready`, `login_webview`, `open_mini`, `close_mini`) están agrupados en un arm que devuelve `client_side`; `ryoku_theme_tokens` también tiene arm pero devuelve `client_side`. La colisión de `subscribe` quedó resuelta en el socket del daemon (`subscribe_events` + `set_channel_subscribed`, alias compat `subscribe`); el nombre Tauri `subscribe` sigue siendo la operación de canal para clientes webview, y un bridge socket que traduzca llamadas con forma Tauri debe mapear ese nombre a `set_channel_subscribed`. Por tanto, coincidencia de nombre no equivale a paridad: 90 métodos son coincidencias funcionales candidatas, 5 son client-side/no soportados por ese host y `subscribe` requiere ese mapeo consciente en un bridge.
 
 ## Diferencias verificadas de contrato / errores
 
@@ -34,11 +34,11 @@ Conteo mecánico: 96 nombres invocados por `api.ts`, todos con función Tauri re
 | `import_playlist_file` | No args; native file picker; cancel -> `null`; `PlaylistTransfer|null` | Requiere `{path}`; validación de extensión/tamaño/schema; `null` no representa cancelación | Host debe mantener picker y mismos límites. |
 | `export_playlist_file` | `{title,items}`; native save picker; devuelve bool (`false` cancel) | `{title,items,path}`; devuelve resultado/error | Mantener confirmación de destino y atomicidad; probar cancelación, sobrescritura/error IO. |
 | `set_playlist_cover` | `{playlistId,pick}`; native image picker; devuelve objeto nullable | Con `pick=true` espera también `path`; devuelve objeto nullable | Windows debe usar picker y validar JPEG/PNG, máximo 8 MiB. |
-| `subscribe` | `{channelId,subscribed}`; escribe suscripción a canal YouTube | `subscribe({events:["*"]})` agrega conexión al stream y responde snapshot | Colisión incompatible. QML `ArtistPage.qml` también llama nombre daemon con `channelId/subscribed`, pero dispatch solo subscribe conn; write parece perdido. Runtime Linux por confirmar. Separar nombres en cualquier bridge. |
+| `subscribe` | `{channelId,subscribed}`; escribe suscripción a canal YouTube | Resuelto (ver abajo): el daemon expone `subscribe_events` (stream de eventos, alias compat `subscribe`) y `set_channel_subscribed` (`{channelId,subscribed}` vía innertube, `bad_params`/`failed`) | Colisión corregida. `ArtistPage.qml` llamaba `subscribe` con args de canal y el daemon devolvía snapshot sin escribir nada (fallo silencioso confirmado en fuente). Ahora llama `set_channel_subscribed`; `Daemon.qml` usa `subscribe_events`; `subscribe` queda como alias del stream para clientes socket existentes. Un host que traduzca llamadas con forma Tauri debe mapear `subscribe` → `set_channel_subscribed`. Verificado: unit tests de `arg`/ruta del daemon; la escritura end-to-end requiere sesión YouTube → sin verificar en runtime. |
 | `ryoku_theme_tokens` | Devuelve `RyokuThemeTokens` desde host Tauri/Ryoku | Dispatch responde `{code:"client_side",message:...}`; QML lee singleton directamente | Sin API de tokens en socket. Windows requiere paleta propia o adaptación equivalente; no tratar nombre como API daemon. |
-| `add_to_playlist` | Devuelve bool | YouTube devuelve bool; rama Spotify termina `null` | Incumple `boolean` tipado; corregir y testear duplicate/success Spotify. |
+| `add_to_playlist` | Devuelve bool | Devuelve bool en todas las ramas: YouTube `false` = duplicado (`AlreadyInPlaylist`); Spotify rama ahora `ok(true)` en éxito (Spotify no rechaza duplicados, el éxito implica añadido) | Corregido: la rama Spotify devolvía `null` violando `boolean`. `spotify_add_route` extrae la decisión de ruta y está unit-testeada; el resultado wire `true` está testeado en `methods.rs` y `wire.rs`. Fallo de dominio sigue siendo error, nunca `false`. |
 | `edit_playlist_details` | Params planos `playlistId,name?,description?,public?`; wrapper aplana `changes` | Mismos campos planos leídos por `arg<Option<T>>` | Esquema coincide; behavior device playlists limita campos. |
-| Errores generales | `Result<T,String>` se presenta como rechazo string a JS | `{code,message}`, códigos `bad_params` y `failed` | Adaptador Windows debe normalizar sin borrar código/mensaje; pruebas de bad params y errores de dominio. |
+| Errores generales | `Result<T,String>` se presenta como rechazo string a JS | `{code,message}`, códigos `bad_params` y `failed` | Normalización verificada en wire: `ErrorBody` sobrevive round-trip con código y mensaje intactos (test `error_codes_and_messages_survive_the_wire_round_trip` en `crates/protocol/src/wire.rs`). El daemon no convierte fallos en éxitos; un request malformado responde `bad_request` con id 0 y la conexión sobrevive (test en `server.rs`). Contrato para el host Windows: producir `ErrorBody` con estos códigos; el lado Tauri sigue exponiendo string. |
 | `frontend_ready`,`login_webview`,`open_mini`,`close_mini` | Responsabilidad nativa Tauri (handshake/login/window) | Arm agrupado responde `{code:"client_side"}`; `sign_in`, `show` y lifecycle daemon cubren partes, no alias uno-a-uno | Preservar comportamiento en host propio; no invocar nombres Tauri al daemon. |
 | Providers/descargas/FX/diagnóstico | Faltan wrappers/comandos Tauri equivalentes para `set/get_provider`, auth Spotify/SC/TIDAL, FX/waveform, descargas y logs de daemon | Métodos disponibles en daemon, incluidos en snapshot/eventos | Gaps de paridad de superficies; no presentar como API Windows ya implementada. |
 
@@ -48,40 +48,65 @@ Los demás métodos comparten los nombres de campos y tipos de entrada declarado
 
 | Evento | Payload / origen estático | Consumidor | Prueba existente / gap |
 | --- | --- | --- | --- |
-| `now-playing` | `NowPlaying`; `AppState` emite item más stream client (`core/state.rs`) | QML Playback reducer; Svelte `onNowPlaying` | `client/tests/tst_playback.qml` cubre reducer parcial; falta contrato payload productor-consumidor. |
+| `now-playing` | `NowPlaying`; `AppState` emite item más stream client (`core/state.rs`) | QML Playback reducer; Svelte `onNowPlaying` | Consumidor verificado con la forma completa de productor (`videoId,duration,streamClient,rating:null→indifferent`) en `tst_playback.qml`; productor no extraído (requiere `AppState`) → sin verificar serialización del productor. |
 | `rating` | `{videoId,rating}`; core | Playback reducer / Svelte listener | tst_playback parcial; falta prueba wire. |
-| `queue-changed` | `QueueState`; core | Playback reducer / listener Svelte | tst_playback parcial; falta schema contract. |
-| `queue-index` | `currentIndex,playedFrom?,shuffle?,repeat?,sourceName?,current` | Playback reducer / listener Svelte | tst_playback cubre parche de fila; falta prueba campos opcionales. |
-| `position`,`duration` | `{position:number}`, `{duration:number}`; daemon app loop / Tauri player loop | Playback reducer/listeners | `crates/ryotunesd/src/server.rs` prueba ejemplo de framing position; sin integración. |
-| `volume` | number escalar; core | Playback reducer / listener | tst_playback cubre drag/echo; falta host integration. |
-| `playback-state` | string `playing|paused`; core y host poller | Playback reducer/listener | tst_playback cubre estado básico; falta fuente dual test. |
-| `stop-after-current` | boolean; core | Playback reducer/listener | tst_playback; cubrimiento parcial. |
-| `playback-error` | `{message}` desde host app; core puede añadir `videoId` | Playback reducer lee `message`; Svelte listener | Sin prueba de forma extra; aditivo compatible. |
+| `queue-changed` | `QueueState`; core | Playback reducer / listener Svelte | Verificado en ambos lados: productor `queue_event_payload` extraído y testeado (`ryotunes-core`, claves camelCase, sin `current`, filas snake_case `video_id`); consumidor con payload completo en `tst_playback.qml`. |
+| `queue-index` | `currentIndex,playedFrom?,shuffle?,repeat?,sourceName?,current` | Playback reducer / listener Svelte | Verificado en ambos lados: mismo builder (sin `items`, `sourceName:null` y `current:null` cubiertos) + consumidor que parchea fila preservando el array. |
+| `position`,`duration` | `{position:number}`, `{duration:number}`; daemon app loop / Tauri player loop | Playback reducer/listeners | Consumidor verificado (objetos `{position}`/`{duration}`, guardas de drag) en `tst_playback.qml`; `server.rs` prueba framing de position; integración end-to-end pendiente. |
+| `volume` | number escalar; core | Playback reducer / listener | Consumidor verificado (escalar + guardas de drag). |
+| `playback-state` | string `playing|paused`; core y host poller | Playback reducer/listener | Consumidor verificado para ambos valores (escalar bare). |
+| `stop-after-current` | boolean; core | Playback reducer/listener | Consumidor verificado (booleano bare). |
+| `playback-error` | `{message}` desde host app; core puede añadir `videoId` | Playback reducer lee `message`; Svelte listener | Consumidor verificado con la forma aditiva `{videoId,message}` (aditivo compatible). |
 | `playback-notice` | `{message}`; core | Playback toast/listener | No se encontró test de contrato. |
 | `cover-error` | `{message}`; Tauri command background sync y daemon methods | Playlist UI / Svelte listener | No se encontró test de payload. |
-| `auth-changed` | Account snapshot; core | QML shell/account views / Svelte listener | No se encontró prueba wire. |
+| `auth-changed` | Account snapshot; core | QML shell/account views / Svelte listener | Consumidor verificado con la forma mínima `{signedIn:false}` (campos ausientes leen como undefined, no rompen). |
 | `account-selection-required` | null/unit; core | QML auth flow / Svelte callback | No se encontró test. |
 | `local-changed` | `{removed:string[]}`; core local rescan | QML library/playback / Svelte listener | Sin test de emisión/consumo. |
 | `login-error`,`login-done` | string / unit; core session | QML login flow / Svelte listeners | Sin test de contrato. |
 | `audio-fx` | AudioFx serializado; core | QML Playback/UI | Sin listener Svelte equivalente ni test. |
-| `provider-changed` | `{provider}`; daemon methods | QML shell/provider surfaces | Sin Tauri listener ni test. |
-| `spotify-auth` | tagged state: `restored`, `restore_failed/message`, `url/url`, `signed_in/name`, `signed_out`, `error/message` | QML provider/auth surfaces | Sin test de secuencia. |
-| `soundcloud-auth` | tagged state: `signed_in/name`, `error/message`, `waiting`, `expired/message`, `signed_out` | QML provider/auth surfaces | Sin test de secuencia. |
-| `tidal-auth` | tagged state: `signed_out`, `waiting/url/code`, `signed_in/name/quality`, `expired/message`, `error/message` | QML provider/auth surfaces | Sin test de secuencia. |
+| `provider-changed` | `{provider}`; daemon methods | QML shell/provider surfaces | Consumidor verificado (`{provider}` en reducer); sin Tauri listener. |
+| `spotify-auth` | tagged state: `restored`, `restore_failed/message`, `url/url`, `signed_in/name`, `signed_out`, `error/message` | QML provider/auth surfaces | Productores centralizados en `crates/ryotunesd/src/auth_events.rs` con tests wire por variante; consumidor verificado en `tst_playback.qml`. `signed_in.name` puede ser null (Option). |
+| `soundcloud-auth` | tagged state: `signed_in/name`, `error/message`, `waiting`, `expired/message`, `restore_failed/message`, `signed_out` | QML provider/auth surfaces | Ídem: `auth_events.rs` (wire) + reducer QML. La matriz previa no listaba `restore_failed`; existe en código. |
+| `tidal-auth` | tagged state: `signed_out`, `waiting/url/code`, `signed_in/name/quality`, `expired/message`, `error/message` | QML provider/auth surfaces | Ídem: `auth_events.rs` (wire, incluye `signed_in.name` null posible) + reducer QML con el código del device flow. |
 | `personal-changed` | blob personal; core | `Personal.qml` | Sin test de emisión. |
 | `library-changed` | `{id}`; daemon writes | Library/Playlist pages, sidebar, library components | Sin test de propagación global. |
 | `downloads-changed` | downloads snapshot; `Downloads` manager | `Downloads.qml`, download button/page | `tst_collections.qml` prueba grouping, no payload event. |
 | `show` | null; daemon tray | `shell.qml` muestra ventana | Sin test de host activation. |
 | `ryoku-theme-changed` | `RyokuThemeTokens`; Tauri Ryoku host | Svelte theme listener; QML obtiene tokens por su runtime | No equivale a evento portable; fuente de tema Windows pendiente. |
-| `lastfm-state` | `LastfmState` (configured/connected/username/error); core Last.fm | Svelte listener; QML settings/status | Sin test de emisión. |
-| `lt-state` | `LtState` snapshot; core Listen Together | QML Listen Together / Svelte listener | No test de contrato payload. |
-| `lt-notice` | string; core Listen Together | QML/Svelte notice listener | No test de payload. |
+| `lastfm-state` | `LastfmState` (configured/connected/username/error); core Last.fm | Svelte listener; QML settings/status | Verificado: `state_json` extraído y testeado en `ryotunes-core` contra la interfaz TS `LastfmState` (username/error null cuando ausentes). |
+| `lt-state` | `LtState` snapshot; core Listen Together | QML Listen Together / Svelte listener | Verificado en productor: test de `snapshot_of` con las 11 claves camelCase (`roomCode,myId,pendingJoins,…`) en `listentogether/mod.rs`; consumidor QML con snapshot completo. |
+| `lt-notice` | string; core Listen Together | QML/Svelte notice listener | Verificado ambos lados: payload es string bare (no `{message}`); reducer lo convierte en toast. |
 
-Eventos sin listener Svelte equivalentes (provider, FX, personal/library/downloads/show) son gap visible para Windows hasta que UI los consuma mediante evento o refresco explícito. Productores/casos sin tipo completo en código están marcados por la forma observada; añadir schema formal y tests al crear bridge Windows. Prueba QML focal existente: `qmltestrunner -input client/tests/tst_playback.qml`; no ejecutada en este W14.
+Eventos sin listener Svelte equivalentes (provider, FX, personal/library/downloads/show) son gap visible para Windows hasta que UI los consuma mediante evento o refresco explícito. Productores/casos sin tipo completo en código están marcados por la forma observada; añadir schema formal y tests al crear bridge Windows. Nota de formato wire verificada por tests: los sobres (eventos, respuestas, payloads) usan camelCase, pero las filas de `SongItem` dentro de `items`/`current` serializan snake_case (`video_id`); los consumidores dependen de esta mezcla. Prueba QML focal: `QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -input client/tests/tst_playback.qml` (el `qmltestrunner` por defecto de `/usr/bin` falla en silencio en algunas máquinas; la ruta Qt6 da diagnóstico). Ejecutada en esta ronda: 17/17; suite completa `client/tests`: 74/74.
+
+## Verificación (W14 + redonde de contratos)
+
+Comandos ejecutados con resultado OK en esta ronda:
+
+- `cargo test --locked -p ryotunes-protocol` — framing wire, round-trip de errores, correlación de ids, payloads de evento (9 tests).
+- `cargo test --locked -p ryotunes-core` — `queue_event_payload` (queue-changed/queue-index), `lastfm.state_json`, snapshot `lt-state`, `lt-notice` (158 tests).
+- `cargo test --locked -p ryotunesd` — `arg`/`opt_arg` (`bad_params`), códigos de error, ruta `spotify_add_route`, resultado booleano de `add_to_playlist`, `auth_events` por variante, framing `bad_request` e id-correlación sobre el server real (66 tests).
+- `cargo test --locked -p innertube -p listen-protocol -p ryotunes-protocol -p ryotunes-soundcloud -p ryotunes-tidal -p sync-server` — suite portable del CI.
+- `cargo fmt --all -- --check`.
+- `QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -input client/tests` — reducer del cliente, 74/74.
+
+Nivel de verificación: unit/contract sobre serialización real y reducer real, con dependencias controladas (no se usan credenciales de providers). **No** es verificación runtime de la aplicación (sin daemon+cliente+mpv en ejecución) ni integración end-to-end productor→socket→consumidor en un proceso.
 
 ## Cierre y trabajo restante
 
-- W14 está completo como inventario estático fuente-a-fuente, no como verificación runtime.
-- Confirmar en Linux el bug aparente `subscribe` de ArtistPage; corregir con owners y test (fuera de este inventario, no se modificó código).
-- Corregir el resultado Spotify `add_to_playlist` para satisfacer boolean contract y cubrirlo con test.
+- W14 queda como inventario estático más verificación de contratos por test; sigue sin verificación runtime de la aplicación completa.
+- `subscribe`/`set_channel_subscribed`/`subscribe_events`: corregido y con tests de parámetros/errores; la escritura real a YouTube con sesión iniciada queda por confirmar en runtime.
+- `add_to_playlist` rama Spotify: corregido a `boolean` con tests de ruta y wire; el éxito real de la API de Spotify es `ok` del transporte (sin señal de duplicado), documentado en la fila.
+- Sin cubrir todavía: payloads de `cover-error`, `local-changed`, `library-changed`, `downloads-changed`, `personal-changed`, `audio-fx`, `login-error`/`login-done`, `show`, `ryoku-theme-changed`, y `rating` a nivel wire de productor.
 - W21/W34: pruebas IPC, payloads y WebView2 en Windows. Baseline de W13 no verifica esto.
+
+## Requisitos previos Windows (anfitrión y pruebas)
+
+El host Windows aún no existe; esto define la costura de prueba, no una implementación:
+
+- **Serialización request/response**: la frontera ya es `ryotunes_protocol` (`Request`/`Response`/`Event`/`ErrorBody`, `Incoming`/`Outgoing` untagged); los tests de wire actuales son la base ejecutable para el host.
+- **Dispatch**: el daemon es el backend heredado; un anfitrión Windows puede hablar el protocolo de socket o sustituir `Dispatch` (trait en `crates/ryotunesd/src/server.rs`) con implementación propia. Ninguna de las dos existe hoy.
+- **Normalización de errores**: contrato verificado — producir `ErrorBody {code,message}` con `bad_params`/`failed` (y códigos de dominio) sin degradar a string ni a éxito.
+- **Entrega de eventos**: el consumidor QML/Svelte ya tolera payloads aditivos; los tests de reducer fijan el contrato que un anfitrión Windows debe respetar al implementar `EventSink`.
+- **Lifecycle y ventana**: `frontend_ready`, `login_webview`, `open_mini`, `close_mini`, `show` son responsabilidad del anfitrión (hoy `client_side` en el daemon); definir su API al elegir arquitectura Windows.
+- **WebView2**: no hay integración WebView2 en el repositorio (el webview lo aportaría Tauri en un host Windows, o Quickshell/QML en Linux). No se añaden tests WebView2 hasta existir una implementación real que los ejecute.

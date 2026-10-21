@@ -413,6 +413,30 @@ impl QueueState {
     }
 }
 
+fn queue_event_payload(q: &QueueState, unchanged: bool) -> serde_json::Value {
+    if unchanged {
+        serde_json::json!({
+            "currentIndex": q.current,
+            "playedFrom": q.played_from,
+            "shuffle": q.shuffle_orig.is_some(),
+            "repeat": q.repeat,
+            "sourceName": &q.source_name,
+            // The playing row, so `start_current`'s duration/artists backfill still reaches
+            // the panel without shipping the other 4,999 rows to carry it.
+            "current": q.items.get(q.current),
+        })
+    } else {
+        serde_json::json!({
+            "items": &q.items,
+            "currentIndex": q.current,
+            "playedFrom": q.played_from,
+            "shuffle": q.shuffle_orig.is_some(),
+            "repeat": q.repeat,
+            "sourceName": &q.source_name,
+        })
+    }
+}
+
 impl AppState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -2456,27 +2480,7 @@ impl AppState {
         let fingerprint = queue_fingerprint(&q.items);
         let unchanged =
             self.last_queue_fingerprint.swap(fingerprint, Ordering::Relaxed) == fingerprint;
-        let payload = if unchanged {
-            serde_json::json!({
-                "currentIndex": q.current,
-                "playedFrom": q.played_from,
-                "shuffle": q.shuffle_orig.is_some(),
-                "repeat": q.repeat,
-                "sourceName": &q.source_name,
-                // The playing row, so `start_current`'s duration/artists backfill still reaches
-                // the panel without shipping the other 4,999 rows to carry it.
-                "current": q.items.get(q.current),
-            })
-        } else {
-            serde_json::json!({
-                "items": &q.items,
-                "currentIndex": q.current,
-                "playedFrom": q.played_from,
-                "shuffle": q.shuffle_orig.is_some(),
-                "repeat": q.repeat,
-                "sourceName": &q.source_name,
-            })
-        };
+        let payload = queue_event_payload(&q, unchanged);
         self.emit(if unchanged { "queue-index" } else { "queue-changed" }, payload);
     }
 
@@ -4329,9 +4333,9 @@ mod tests {
     use super::{
         append_page, backfill_metadata, drop_duplicates, enqueue_at, format_duration,
         guest_insert_index, is_mix, loudness_gain, merge_radio, next_index, parse_duration_ms,
-        persist_fingerprint, queue_fingerprint, radio_seed_for, read_personal, shuffle_new_queue,
-        shuffle_upcoming, splice_radio_into, spotify_mpv_options, unshuffled, upcoming_queued,
-        validate_personal_blob, QueueState, RepeatMode, PERSONAL_JSON_KEY,
+        persist_fingerprint, queue_event_payload, queue_fingerprint, radio_seed_for, read_personal,
+        shuffle_new_queue, shuffle_upcoming, splice_radio_into, spotify_mpv_options, unshuffled,
+        upcoming_queued, validate_personal_blob, QueueState, RepeatMode, PERSONAL_JSON_KEY,
     };
     use crate::db::Db;
 
@@ -4432,6 +4436,62 @@ mod tests {
         q.shuffle_orig = Some(q.items.clone());
         let on = persist_fingerprint(&q);
         assert_ne!(off, on);
+    }
+
+    #[test]
+    fn queue_changed_payload_carries_the_rows_and_no_current() {
+        let q = QueueState {
+            items: vec![
+                innertube::SongItem { video_id: "a".into(), ..Default::default() },
+                innertube::SongItem { video_id: "b".into(), ..Default::default() },
+            ],
+            current: 1,
+            played_from: 0,
+            repeat: RepeatMode::All,
+            source_name: Some("Liked Music".into()),
+            ..QueueState::default()
+        };
+        let payload = queue_event_payload(&q, false);
+        assert_eq!(payload["items"].as_array().unwrap().len(), 2);
+        assert_eq!(payload["items"][0]["video_id"], "a");
+        assert_eq!(payload["currentIndex"], 1);
+        assert_eq!(payload["playedFrom"], 0);
+        assert_eq!(payload["shuffle"], false);
+        assert_eq!(payload["repeat"], "all");
+        assert_eq!(payload["sourceName"], "Liked Music");
+        assert!(payload.get("current").is_none(), "the full payload never carries `current`");
+    }
+
+    #[test]
+    fn queue_index_payload_patches_the_pointer_without_the_rows() {
+        let q = QueueState {
+            items: vec![innertube::SongItem { video_id: "a".into(), ..Default::default() }],
+            current: 0,
+            played_from: 0,
+            repeat: RepeatMode::Off,
+            source_name: None,
+            shuffle_orig: Some(vec![innertube::SongItem {
+                video_id: "a".into(),
+                ..Default::default()
+            }]),
+            ..QueueState::default()
+        };
+        let payload = queue_event_payload(&q, true);
+        assert!(payload.get("items").is_none(), "the small payload never carries `items`");
+        assert_eq!(payload["currentIndex"], 0);
+        assert_eq!(payload["shuffle"], true);
+        assert_eq!(payload["repeat"], "off");
+        assert!(payload["sourceName"].is_null(), "an unnamed queue is null, not absent");
+        assert_eq!(payload["current"]["video_id"], "a");
+    }
+
+    #[test]
+    fn queue_index_payload_of_an_empty_queue_points_past_the_end_safely() {
+        let q = QueueState { repeat: RepeatMode::One, ..QueueState::default() };
+        let payload = queue_event_payload(&q, true);
+        assert_eq!(payload["currentIndex"], 0);
+        assert_eq!(payload["repeat"], "one");
+        assert!(payload["current"].is_null(), "no row exists, so current is null");
     }
 
     #[test]

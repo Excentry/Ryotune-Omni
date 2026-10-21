@@ -272,6 +272,68 @@ mod tests {
         assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
     }
 
+    #[tokio::test]
+    async fn malformed_request_lines_answer_bad_request_and_the_connection_survives() {
+        let dir = tempfile_dir();
+        let path = dir.join("ryotunesd.sock");
+        let sink = Arc::new(SocketSink::default());
+        let (quit_tx, _quit_rx) = mpsc::unbounded_channel();
+        let lifecycle = Lifecycle::new(quit_tx);
+        let server = Server::bind(&path, sink, lifecycle).unwrap();
+        tokio::spawn(server.run(Arc::new(Echo)));
+
+        let stream = UnixStream::connect(&path).await.unwrap();
+        let (rd, mut wr) = stream.into_split();
+        let mut lines = BufReader::new(rd).lines();
+
+        wr.write_all(b"this is not json\n").await.unwrap();
+        let l = lines.next_line().await.unwrap().unwrap();
+        assert!(l.contains("\"code\":\"bad_request\""), "framing error shape: {l}");
+        assert!(l.contains("\"id\":0"), "unattributed failures use id 0: {l}");
+
+        wr.write_all(b"{\"id\":9}\n").await.unwrap();
+        let l = lines.next_line().await.unwrap().unwrap();
+        assert!(l.contains("\"code\":\"bad_request\""), "missing method is a framing error: {l}");
+
+        wr.write_all(b"{\"id\":10,\"method\":\"echo\",\"params\":{\"still\":\"alive\"}}\n")
+            .await
+            .unwrap();
+        let l = lines.next_line().await.unwrap().unwrap();
+        assert_eq!(l, "{\"id\":10,\"result\":{\"still\":\"alive\"}}");
+    }
+
+    #[tokio::test]
+    async fn interleaved_requests_correlate_ids_independently() {
+        let dir = tempfile_dir();
+        let path = dir.join("ryotunesd.sock");
+        let sink = Arc::new(SocketSink::default());
+        let (quit_tx, _quit_rx) = mpsc::unbounded_channel();
+        let lifecycle = Lifecycle::new(quit_tx);
+        let server = Server::bind(&path, sink, lifecycle).unwrap();
+        tokio::spawn(server.run(Arc::new(Echo)));
+
+        let stream = UnixStream::connect(&path).await.unwrap();
+        let (rd, mut wr) = stream.into_split();
+        let mut lines = BufReader::new(rd).lines();
+
+        wr.write_all(b"{\"id\":11,\"method\":\"echo\",\"params\":{\"who\":\"first\"}}\n")
+            .await
+            .unwrap();
+        wr.write_all(b"{\"id\":22,\"method\":\"echo\",\"params\":{\"who\":\"second\"}}\n")
+            .await
+            .unwrap();
+        let a = lines.next_line().await.unwrap().unwrap();
+        let b = lines.next_line().await.unwrap().unwrap();
+        let expected = [
+            "{\"id\":11,\"result\":{\"who\":\"first\"}}",
+            "{\"id\":22,\"result\":{\"who\":\"second\"}}",
+        ];
+        for line in [&a, &b] {
+            assert!(expected.contains(&line.as_str()), "unexpected response: {line}");
+        }
+        assert_ne!(a, b, "each id must get its own result");
+    }
+
     fn tempfile_dir() -> std::path::PathBuf {
         let p = std::env::temp_dir().join(format!(
             "ryotunesd-test-{}-{}",

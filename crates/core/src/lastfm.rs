@@ -278,16 +278,23 @@ fn sign(params: &[(String, String)]) -> String {
 
 // --- auth flow (connect / disconnect / status) ----------------------------------------------
 
+fn state_json(
+    configured: bool,
+    connected: bool,
+    username: Option<&str>,
+    error: Option<&str>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "configured": configured,
+        "connected": connected,
+        "username": username,
+        "error": error
+    })
+}
+
 fn emit_state(sink: &dyn EventSink, connected: bool, username: Option<&str>, error: Option<&str>) {
-    sink.emit(
-        "lastfm-state",
-        serde_json::json!({
-            "configured": !API_KEY.is_empty() && !API_SECRET.is_empty(),
-            "connected": connected,
-            "username": username,
-            "error": error
-        }),
-    );
+    let configured = !API_KEY.is_empty() && !API_SECRET.is_empty();
+    sink.emit("lastfm-state", state_json(configured, connected, username, error));
 }
 
 /// Start the connect flow: fetch a request token, open the authorize page in the user's browser,
@@ -410,6 +417,20 @@ fn now_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lastfm_state_payload_matches_the_declared_frontend_contract() {
+        let connected = state_json(true, true, Some("ada"), None);
+        assert_eq!(connected["configured"], true);
+        assert_eq!(connected["connected"], true);
+        assert_eq!(connected["username"], "ada");
+        assert!(connected["error"].is_null(), "absent error is null, not omitted");
+        let anonymous = state_json(true, false, None, None);
+        assert!(anonymous["username"].is_null());
+        let failed = state_json(true, false, None, Some("timed out"));
+        assert_eq!(failed["error"], "timed out");
+        assert_eq!(connected.as_object().unwrap().len(), 4, "exactly the four declared fields");
+    }
 
     /// The signature is the auth-critical path: params sorted by name, `namevalue` concat, secret
     /// appended, md5 hex. Verified against a hand-computed digest (secret is empty in the unit test).

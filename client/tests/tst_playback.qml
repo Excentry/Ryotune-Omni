@@ -153,4 +153,91 @@ TestCase {
         compare(s.soundcloud.signedIn, false);
         compare(s.soundcloud.error, "");
     }
+
+    function test_queue_index_with_null_source_and_full_error_payload() {
+        var s = freshState();
+        s.queue = { items: [{ video_id: "a" }], currentIndex: 0 };
+        PB.applyEvent(s, "queue-index", {
+            currentIndex: 0, playedFrom: 0, shuffle: false, repeat: "off",
+            sourceName: null, current: { video_id: "a", duration: "3:11" }
+        });
+        compare(s.queue.sourceName, null);
+        compare(s.queue.items[0].duration, "3:11");
+
+        var fx = PB.applyEvent(s, "playback-error",
+            { videoId: "abc", message: "Could not load this track" });
+        compare(s.lastError, "Could not load this track");
+        compare(s.pendingVideoId, null);
+        compare(fx.kind, "error");
+    }
+
+    function test_queue_changed_replaces_the_rows_wholesale() {
+        var s = freshState();
+        s.queue = { items: [{ video_id: "old" }], currentIndex: 0 };
+        PB.applyEvent(s, "queue-changed", {
+            items: [{ video_id: "x" }, { video_id: "y" }], currentIndex: 1,
+            playedFrom: 0, shuffle: true, repeat: "all", sourceName: "Album"
+        });
+        compare(s.queue.items.length, 2);
+        compare(s.queue.currentIndex, 1);
+        compare(s.queue.shuffle, true);
+        compare(s.queue.repeat, "all");
+        compare(s.queue.sourceName, "Album");
+    }
+
+    function test_now_playing_with_null_rating_falls_back_to_indifferent() {
+        var s = freshState();
+        PB.applyEvent(s, "now-playing", {
+            videoId: "abc", title: "Song", artists: "Artist", artistId: "UC1",
+            artistRuns: [{ text: "Artist", id: "UC1" }], thumbnail: "t.jpg",
+            duration: "3:00", streamClient: "android", rating: null
+        });
+        compare(s.rating, "indifferent");
+        compare(s.duration, 180);
+        compare(s.now.streamClient, "android");
+        compare(s.now.artistRuns.length, 1);
+    }
+
+    function test_bare_transport_scalars_and_stop_after_current() {
+        var s = freshState();
+        PB.applyEvent(s, "duration", { duration: 210 });
+        compare(s.duration, 210);
+        PB.applyEvent(s, "stop-after-current", true);
+        compare(s.stopAfterCurrent, true);
+        PB.applyEvent(s, "stop-after-current", false);
+        compare(s.stopAfterCurrent, false);
+        PB.applyEvent(s, "playback-state", "playing");
+        compare(s.paused, false);
+        PB.applyEvent(s, "playback-state", "paused");
+        compare(s.paused, true);
+    }
+
+    function test_auth_changed_accepts_the_signed_out_minimal_shape() {
+        var s = freshState();
+        s.auth = { signedIn: true, name: "ada" };
+        PB.applyEvent(s, "auth-changed", { signedIn: false });
+        compare(s.auth.signedIn, false);
+        compare(s.auth.name, undefined);
+    }
+
+    function test_provider_changed_sets_the_active_provider() {
+        var s = freshState();
+        PB.applyEvent(s, "provider-changed", { provider: "spotify" });
+        compare(s.provider, "spotify");
+    }
+
+    function test_lt_state_and_notice_shapes() {
+        var s = freshState();
+        var snap = {
+            status: "disconnected", role: "none", requesting: false, roomCode: null,
+            myId: null, serverUrl: "wss://example.invalid", users: [], currentTrack: null,
+            queue: [], pendingJoins: [], suggestions: []
+        };
+        compare(PB.applyEvent(s, "lt-state", snap), null);
+        compare(s.lt.role, "none");
+        compare(s.lt.serverUrl, "wss://example.invalid");
+        var notice = PB.applyEvent(s, "lt-notice", "ada joined");
+        compare(notice.toast, "ada joined");
+        compare(notice.kind, "info");
+    }
 }
