@@ -180,7 +180,7 @@ Item {
         var next = !page.subscribed;
         page.subBusy = true;
         page.subscribed = next;
-        Daemon.call("subscribe", { channelId: page.artist.channelId, subscribed: next })
+        Daemon.call("set_channel_subscribed", { channelId: page.artist.channelId, subscribed: next })
             .then(() => { page.subBusy = false; Playback.toast(next ? ("Subscribed to " + (page.artist.name || "")) : "Unsubscribed", "success"); })
             .catch((e) => {
                 page.subscribed = !next;

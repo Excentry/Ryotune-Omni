@@ -1,4 +1,5 @@
 mod app;
+mod auth_events;
 mod browser_auth;
 mod diagnostics;
 mod download_media;
@@ -75,7 +76,7 @@ fn main() -> anyhow::Result<()> {
                 match state.spotify.restore().await {
                     Ok(true) => {
                         tracing::info!("spotify: restored a cached session");
-                        state.emit("spotify-auth", serde_json::json!({ "state": "restored" }));
+                        state.emit("spotify-auth", auth_events::spotify_restored());
                     }
                     Ok(false) => tracing::debug!("spotify: no cached session to restore"),
                     Err(e) => {
@@ -85,10 +86,9 @@ fn main() -> anyhow::Result<()> {
                         if state.spotify.stored() {
                             state.emit(
                                 "spotify-auth",
-                                serde_json::json!({
-                                    "state": "restore_failed",
-                                    "message": format!("Spotify sign-in no longer works: {e:#}"),
-                                }),
+                                auth_events::spotify_restore_failed(&format!(
+                                    "Spotify sign-in no longer works: {e:#}"
+                                )),
                             );
                         }
                     }
