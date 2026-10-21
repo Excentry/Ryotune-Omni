@@ -55,17 +55,17 @@ impl RyotunesTray {
 
 impl Tray for RyotunesTray {
     fn id(&self) -> String {
-        "ryotunes".into()
+        "ryotune-omni".into()
     }
 
     fn title(&self) -> String {
-        "Ryotunes".into()
+        "Ryotune Omni".into()
     }
 
-    /// The packaged `ryotunes` hicolor icon (installed by the PKGBUILD); the StatusNotifierItem
+    /// The packaged `ryotune-omni` hicolor icon (installed by the PKGBUILD); the StatusNotifierItem
     /// resolves it from the theme, so no in-process pixmap is needed without an `AppHandle`.
     fn icon_name(&self) -> String {
-        "ryotunes".into()
+        "ryotune-omni".into()
     }
 
     /// The entire reason this backend exists: the desktop dispatches a left-click here.
@@ -82,7 +82,7 @@ impl Tray for RyotunesTray {
             })
         };
         vec![
-            item("Show Ryotunes", "show"),
+            item("Show Ryotune Omni", "show"),
             MenuItem::Separator,
             item(if self.playing { "Pause" } else { "Play" }, "play_pause"),
             item("Next", "next"),
@@ -104,8 +104,8 @@ pub fn show(sink: &Arc<SocketSink>) {
         sink.emit("show", Value::Null);
         return;
     }
-    if let Err(e) = std::process::Command::new("ryotunes-qml").spawn() {
-        tracing::warn!(error = %e, "`show` could not launch ryotunes-qml");
+    if let Err(e) = std::process::Command::new("ryotune-omni-qml").spawn() {
+        tracing::warn!(error = %e, "`show` could not launch ryotune-omni-qml");
     }
 }
 

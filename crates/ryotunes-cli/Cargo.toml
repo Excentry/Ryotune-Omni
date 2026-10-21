@@ -3,10 +3,10 @@ name = "ryotunes-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ryotunes daemon command-line client: run a method or follow events over the socket."
+description = "Ryotune Omni daemon command-line client."
 
 [[bin]]
-name = "ryotunes-cli"
+name = "ryotune-omni-cli"
 path = "src/main.rs"
 
 [dependencies]

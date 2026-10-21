@@ -10,7 +10,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property string socketPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryotunes/ryotunesd.sock"
+    readonly property string socketPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryotune-omni/daemon.sock"
     readonly property bool connected: !!root.sock && root.sock.connected
     property int protocol: 0
     property string daemonVersion: ""

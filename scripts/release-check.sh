@@ -13,7 +13,7 @@ ver="$(sed -n 's/^version = "\([0-9A-Za-z.+-]*\)"$/\1/p' Cargo.toml | head -1)"
   || { say FAIL 'workspace version missing or not SemVer in Cargo.toml'; fail=1; }
 grep -q "\"version\": \"$ver\"" src-tauri/tauri.conf.json || { say FAIL "Tauri version is not $ver"; fail=1; }
 grep -q "\"version\": \"$ver\"" ui/package.json || { say FAIL "UI version is not $ver"; fail=1; }
-grep -q '"identifier": "dev.ryoku.ryotunes"' src-tauri/tauri.conf.json || { say FAIL 'unexpected application identifier'; fail=1; }
+grep -q '"identifier": "dev.excentry.ryotune-omni"' src-tauri/tauri.conf.json || { say FAIL 'unexpected application identifier'; fail=1; }
 
 say check 'private keys and private endpoints'
 # Scan versioned/unignored source, not makepkg trees or generated frontend output.
@@ -55,12 +55,12 @@ for p in root.rglob('*.toml'):
 print('JSON/TOML: OK')
 PY
 
-say check 'every shipped skin passes ryotunes-cli skin check'
+say check 'every shipped skin passes ryotune-omni-cli skin check'
 if command -v cargo >/dev/null 2>&1; then
-  cargo build -q -p ryotunes-cli
+  cargo build -q -p ryotunes-cli --bin ryotune-omni-cli
   for d in skins/*/; do
     [ -f "${d}skin.json" ] || continue
-    ./target/debug/ryotunes-cli skin check "$d" >/dev/null \
+    ./target/debug/ryotune-omni-cli skin check "$d" >/dev/null \
       || { say FAIL "skin ${d} fails validation"; fail=1; }
   done
 else

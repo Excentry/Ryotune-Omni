@@ -70,7 +70,7 @@ ShellRoot {
 
     FloatingWindow {
         id: win
-        title: shellRoot.devTitle || "Ryotunes"
+        title: shellRoot.devTitle || "Ryotune Omni"
         color: Tokens.paper
         minimumSize: Qt.size(900, 620)
         // Open at the Tauri app's daily-driver geometry (about 86% x 82% of the monitor, capped at

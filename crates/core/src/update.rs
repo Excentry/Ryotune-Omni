@@ -13,8 +13,8 @@ use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
-const REPOSITORY: &str = "https://github.com/ryoku-dev/ryotunes";
-const LATEST: &str = "https://api.github.com/repos/ryoku-dev/ryotunes/releases/latest";
+const REPOSITORY: &str = "https://github.com/Excentry/Ryotune-Omni";
+const LATEST: &str = "https://api.github.com/repos/Excentry/Ryotune-Omni/releases/latest";
 const MAX_PACKAGE: u64 = 1024 * 1024 * 1024;
 static INSTALL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 const VOID_DEPENDS: &str = include_str!("../../../packaging/void/depends");
@@ -80,7 +80,7 @@ fn version(raw: &str) -> Option<(u64, u64, u64)> {
 }
 
 fn package_name(version: &str) -> String {
-    format!("ryotunes-{version}-1-x86_64.pkg.tar.zst")
+    format!("ryotune-omni-{version}-1-x86_64.pkg.tar.zst")
 }
 
 fn release_info(release: Option<Release>, current: &str, reason: Option<String>) -> UpdateInfo {
@@ -121,7 +121,7 @@ fn release_info(release: Option<Release>, current: &str, reason: Option<String>)
 async fn response(url: &str, timeout: Duration) -> Result<reqwest::Response, String> {
     crate::http::client()
         .get(url)
-        .header(reqwest::header::USER_AGENT, concat!("Ryotunes/", env!("CARGO_PKG_VERSION")))
+        .header(reqwest::header::USER_AGENT, concat!("Ryotune-Omni/", env!("CARGO_PKG_VERSION")))
         .header(reqwest::header::ACCEPT, "application/vnd.github+json")
         .timeout(timeout)
         .send()
@@ -167,15 +167,14 @@ async fn installation() -> Result<Manager, String> {
     owner.arg(if manager == Manager::Pacman { "-Qoq" } else { "-o" }).arg(exe).kill_on_drop(true);
     match tokio::time::timeout(Duration::from_secs(10), owner.output()).await {
         Ok(Ok(output)) if output.status.success() && owns(manager, &output.stdout) => Ok(manager),
-        _ => Err("This copy of Ryotunes was not installed from its package, so it cannot update itself. Install the package from the release page; development builds are never overwritten.".into()),
+        _ => Err("This copy of Ryotune Omni is not installed from its package, so it cannot update itself. Install the Omni package from its release page; development builds are never overwritten.".into()),
     }
 }
 
-/// Whether the owner query names the ryotunes package. xbps answers
-/// `ryotunes-1.2.1_1: /usr/bin/ryotunesd (regular file)`.
+/// Whether owner query names Ryotune Omni, never the upstream Ryotunes package.
 fn owns(manager: Manager, stdout: &[u8]) -> bool {
     match manager {
-        Manager::Pacman => stdout == b"ryotunes\n",
+        Manager::Pacman => stdout == b"ryotune-omni\n",
         Manager::Xbps => std::str::from_utf8(stdout)
             .ok()
             .and_then(|text| text.split_once(": "))
@@ -200,15 +199,15 @@ async fn installed_package_version(manager: Manager) -> Result<Option<String>, S
         Manager::Xbps => Command::new("/usr/bin/xbps-query"),
     };
     match manager {
-        Manager::Pacman => query.args(["-Q", "ryotunes"]),
-        Manager::Xbps => query.args(["-p", "pkgver", "ryotunes"]),
+        Manager::Pacman => query.args(["-Q", "ryotune-omni"]),
+        Manager::Xbps => query.args(["-p", "pkgver", "ryotune-omni"]),
     };
     let output = tokio::time::timeout(Duration::from_secs(10), query.kill_on_drop(true).output())
         .await
         .map_err(|_| "Timed out reading the installed package.")?
         .map_err(|e| format!("Could not query the installed package: {e}"))?;
     if !output.status.success() {
-        return Err("Could not query the installed Ryotunes package.".into());
+        return Err("Could not query the installed Ryotune Omni package.".into());
     }
     let text = String::from_utf8_lossy(&output.stdout);
     Ok(match manager {
@@ -217,17 +216,17 @@ async fn installed_package_version(manager: Manager) -> Result<Option<String>, S
     })
 }
 
-/// `ryotunes 1:1.1.9-1` → `1.1.9`.
+/// `ryotune-omni 1.1.9-1` → `1.1.9`.
 fn package_version(query: &str) -> Option<String> {
     query
         .trim()
-        .strip_prefix("ryotunes 1:")
+        .strip_prefix("ryotune-omni ")
         .and_then(|value| value.rsplit_once('-').map(|(version, _)| version.to_owned()))
 }
 
-/// `ryotunes-1.2.1_1` → `1.2.1`.
+/// `ryotune-omni-1.2.1_1` → `1.2.1`.
 fn xbps_version(pkgver: &str) -> Option<String> {
-    let (version, revision) = pkgver.trim().strip_prefix("ryotunes-")?.rsplit_once('_')?;
+    let (version, revision) = pkgver.trim().strip_prefix("ryotune-omni-")?.rsplit_once('_')?;
     let revision_ok = !revision.is_empty() && revision.bytes().all(|byte| byte.is_ascii_digit());
     (revision_ok && !version.contains('-')).then(|| version.to_owned())
 }
@@ -330,7 +329,7 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
     if let Some(installed_version) = installed_package_version(manager).await? {
         if version(&installed_version) > version(&requested) {
             return Err(
-                "A newer package is already installed. Quit Ryotunes and open it again.".into()
+                "A newer package is already installed. Quit Ryotune Omni and open it again.".into(),
             );
         }
         if installed_version == requested {
@@ -339,7 +338,7 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
     }
     // Private random staging, removed on every success/error. No user-controlled path reaches root.
     let staging = tempfile::Builder::new()
-        .prefix("ryotunes-update-")
+        .prefix("ryotune-omni-update-")
         .tempdir()
         .map_err(|e| format!("Could not create private update staging: {e}"))?;
     let name = package_name(&requested);
@@ -365,10 +364,10 @@ async fn install_pacman(path: &Path, requested: &str) -> Result<(), String> {
         .await
         .map_err(|_| "Timed out reading the package identity.")?
         .map_err(|e| format!("Could not inspect the package: {e}"))?;
-    let expected_identity = format!("ryotunes 1:{requested}-1\n");
+    let expected_identity = format!("ryotune-omni {requested}-1\n");
     if !output.status.success() || output.stdout != expected_identity.as_bytes() {
         return Err(
-            "Downloaded package identity does not match the selected Ryotunes release.".into()
+            "Downloaded package identity does not match the selected Ryotune Omni release.".into(),
         );
     }
     // Explicit Update click + polkit approval authorizes just this package transaction. Retain
@@ -393,7 +392,7 @@ async fn install_pacman(path: &Path, requested: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Repack the verified Arch package as `ryotunes-<version>_1` in a private local repository and
+/// Repack the verified Arch package as `ryotune-omni-<version>_1` in a private local repository and
 /// install it from there. xbps-create and xbps-rindex run unprivileged; only the final
 /// xbps-install goes through polkit.
 async fn install_xbps(package: &Path, staging: &Path, requested: &str) -> Result<(), String> {
@@ -406,13 +405,13 @@ async fn install_xbps(package: &Path, staging: &Path, requested: &str) -> Result
     refuse_unrunnable(&root.join("usr/bin")).await?;
     tokio::fs::create_dir(&repo).await.map_err(|e| format!("Could not stage update: {e}"))?;
 
-    let pkgver = format!("ryotunes-{requested}_1");
+    let pkgver = format!("ryotune-omni-{requested}_1");
     let depends = void_depends();
     run(
         Command::new("/usr/bin/xbps-create")
             .current_dir(&repo)
             .args(["-q", "-A", "x86_64", "-n", &pkgver, "-l", "GPL-3.0-or-later", "-H", REPOSITORY])
-            .args(["-s", "Ryoku music client, playback daemon, and sync server"])
+            .args(["-s", "Ryotune Omni music player and playback daemon"])
             .args(["-D", &depends])
             .arg(&root),
         "build the xbps package",
@@ -432,7 +431,7 @@ async fn install_xbps(package: &Path, staging: &Path, requested: &str) -> Result
         .arg("/usr/bin/xbps-install")
         .args(["-S", "-y", "-u"])
         .arg(format!("--repository={}", repo.display()))
-        .arg("ryotunes")
+        .arg("ryotune-omni")
         .stdin(Stdio::null())
         .output()
         .await
@@ -529,7 +528,7 @@ fn unpack(package: &Path, root: &Path, requested: &str) -> Result<(), String> {
     }
     if !pkginfo_matches(&pkginfo, requested) {
         return Err(
-            "Downloaded package identity does not match the selected Ryotunes release.".into()
+            "Downloaded package identity does not match the selected Ryotune Omni release.".into(),
         );
     }
     Ok(())
@@ -538,8 +537,8 @@ fn unpack(package: &Path, root: &Path, requested: &str) -> Result<(), String> {
 fn pkginfo_matches(pkginfo: &str, requested: &str) -> bool {
     let field =
         |key: &str| pkginfo.lines().find_map(|line| line.strip_prefix(key)?.strip_prefix(" = "));
-    field("pkgname") == Some("ryotunes")
-        && field("pkgver") == Some(format!("1:{requested}-1").as_str())
+    field("pkgname") == Some("ryotune-omni")
+        && field("pkgver") == Some(format!("{requested}-1").as_str())
         && field("arch") == Some("x86_64")
 }
 
@@ -631,22 +630,28 @@ mod tests {
 
     #[test]
     fn a_replaced_binary_still_resolves_to_its_package_path() {
-        let replaced = PathBuf::from("/usr/bin/ryotunesd (deleted)");
-        assert_eq!(on_disk(replaced), PathBuf::from("/usr/bin/ryotunesd"));
-        let intact = PathBuf::from("/usr/bin/ryotunesd");
+        let replaced = PathBuf::from("/usr/bin/ryotune-omni-daemon (deleted)");
+        assert_eq!(on_disk(replaced), PathBuf::from("/usr/bin/ryotune-omni-daemon"));
+        let intact = PathBuf::from("/usr/bin/ryotune-omni-daemon");
         assert_eq!(on_disk(intact.clone()), intact);
-        assert_eq!(package_version("ryotunes 1:1.1.9-1\n").as_deref(), Some("1.1.9"));
-        assert_eq!(package_version("other 1:1.1.9-1"), None);
+        assert_eq!(package_version("ryotune-omni 1.1.9-1\n").as_deref(), Some("1.1.9"));
+        assert_eq!(package_version("ryotunes 1:1.1.9-1\n"), None);
     }
 
     #[test]
-    fn xbps_owner_and_version_name_only_ryotunes() {
-        assert_eq!(xbps_version("ryotunes-1.2.1_1\n").as_deref(), Some("1.2.1"));
-        assert_eq!(xbps_version("ryotunes-1.2.1"), None);
-        assert_eq!(xbps_version("ryotunes-cli-1.2.1_1"), None);
-        assert_eq!(xbps_version("ryotunes-extra-1.2.1_1"), None);
-        assert!(owns(Manager::Xbps, b"ryotunes-1.2.1_1: /usr/bin/ryotunesd (regular file)\n"));
-        assert!(!owns(Manager::Xbps, b"ryoku-0.1_1: /usr/bin/ryotunesd (regular file)\n"));
+    fn xbps_owner_and_version_name_only_omni() {
+        assert_eq!(xbps_version("ryotune-omni-1.2.1_1\n").as_deref(), Some("1.2.1"));
+        assert_eq!(xbps_version("ryotune-omni-1.2.1"), None);
+        assert_eq!(xbps_version("ryotunes-1.2.1_1"), None);
+        assert_eq!(xbps_version("ryotune-omni-cli-1.2.1_1"), None);
+        assert!(owns(
+            Manager::Xbps,
+            b"ryotune-omni-1.2.1_1: /usr/bin/ryotune-omni-daemon (regular file)\n"
+        ));
+        assert!(!owns(
+            Manager::Xbps,
+            b"ryotunes-1.2.1_1: /usr/bin/ryotune-omni-daemon (regular file)\n"
+        ));
         assert!(!owns(Manager::Xbps, b""));
     }
 
@@ -660,23 +665,25 @@ mod tests {
             builder.append_data(&mut header, path, body).unwrap();
         };
         add(".PKGINFO", 0o644, pkginfo.as_bytes());
-        add("usr/bin/ryotunesd", 0o755, b"elf");
-        add("usr/lib/systemd/user/ryotunesd.service", 0o644, b"[Unit]");
+        add("usr/bin/ryotune-omni-daemon", 0o755, b"elf");
+        add("usr/lib/systemd/user/ryotune-omni-daemon.service", 0o644, b"[Unit]");
         let tar = builder.into_inner().unwrap();
         ruzstd::encoding::compress_to_vec(&tar[..], ruzstd::encoding::CompressionLevel::Fastest)
     }
 
+    #[cfg(unix)]
     #[test]
     fn unpack_keeps_usr_without_systemd_and_checks_identity() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
-        let package = dir.path().join("ryotunes.pkg.tar.zst");
-        let good = "pkgname = ryotunes\npkgbase = ryotunes\npkgver = 1:1.2.2-1\narch = x86_64\n";
+        let package = dir.path().join("ryotune-omni.pkg.tar.zst");
+        let good =
+            "pkgname = ryotune-omni\npkgbase = ryotune-omni\npkgver = 1.2.2-1\narch = x86_64\n";
         std::fs::write(&package, arch_package(good)).unwrap();
 
         let root = dir.path().join("root");
         unpack(&package, &root, "1.2.2").unwrap();
-        let daemon = std::fs::metadata(root.join("usr/bin/ryotunesd")).unwrap();
+        let daemon = std::fs::metadata(root.join("usr/bin/ryotune-omni-daemon")).unwrap();
         assert_eq!(daemon.permissions().mode() & 0o777, 0o755);
         assert!(!root.join("usr/lib/systemd").exists());
         assert!(!root.join(".PKGINFO").exists());

@@ -6,7 +6,7 @@ license.workspace = true
 description = "Ryotunes Listen Together sync server (self-hosted WebSocket hub)"
 
 [[bin]]
-name = "ryotunes-sync"
+name = "ryotune-omni-sync-server"
 path = "src/main.rs"
 
 [dependencies]

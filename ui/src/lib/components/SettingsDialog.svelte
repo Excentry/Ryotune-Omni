@@ -51,11 +51,11 @@
 	const updateAvailable = $derived(!!update?.available && !!update?.latestVersion);
 	const canInstallUpdate = $derived(updateAvailable && !!update?.canInstall && updateStatus !== 'installed');
 	// Always-available changelog target: the release the check found, else the project's releases page.
-	const RELEASES_URL = 'https://github.com/ryoku-dev/ryotunes/releases';
+	const RELEASES_URL = 'https://github.com/Excentry/Ryotune-Omni/releases';
 	let settings = $state<Record<string, string>>({});
 	let clients = $state<string[]>([]);
 	let proxyInput = $state('');
-	let discordNameInput = $state('Ryotunes');
+	let discordNameInput = $state('Ryotune Omni');
 	let savingDiscordName = $state(false);
 	let loaded = $state(false);
 	let clearing = $state(false);
@@ -78,7 +78,7 @@
 		}
 		if (tab === 'data') return t('Tape, cache and transport — the local path that keeps playback immediate.');
 		if (tab === 'keybinds') return t('Keyboard flow is part of the instrument: searchable, grouped and always in sync with the live bindings.');
-		return `${t('Ryotunes')}${appVersion ? ` ${appVersion}` : ''} — ${t('a Ryoku-native music instrument built around Rust, mpv and WebKitGTK.')}`;
+		return `${t('Ryotune Omni')}${appVersion ? ` ${appVersion}` : ''} — ${t('an independent music player built around Rust, mpv and WebKitGTK.')}`;
 	});
 	const settingsReadout = $derived.by(() => {
 		if (tab === 'general') {
@@ -137,7 +137,7 @@
 			settings = s;
 			clients = c;
 			proxyInput = s.proxy ?? '';
-			discordNameInput = s.discord_presence_name?.trim() || 'Ryotunes';
+			discordNameInput = s.discord_presence_name?.trim() || 'Ryotune Omni';
 			if (s.low_resource_mode === 'true' && !appearance.lowResourceMode) setAppearance({ lowResourceMode: true });
 			if (s.low_resource_mode !== 'true' && appearance.lowResourceMode) {
 				settings.low_resource_mode = 'true';
@@ -219,7 +219,7 @@
 
 	async function saveDiscordName() {
 		if (savingDiscordName) return;
-		const value = discordNameInput.trim() || 'Ryotunes';
+		const value = discordNameInput.trim() || 'Ryotune Omni';
 		const length = [...value].length;
 		if (length < 2 || length > 128) {
 			toast.error(t('Discord presence title must be between 2 and 128 characters'));
@@ -239,7 +239,7 @@
 	}
 
 	async function resetDiscordName() {
-		discordNameInput = 'Ryotunes';
+		discordNameInput = 'Ryotune Omni';
 		await saveDiscordName();
 	}
 
@@ -438,13 +438,13 @@
 					<div class="border-b py-3">
 						<div class="font-medium">{t('Discord presence title')}</div>
 						<p class="mt-0.5 text-sm text-muted-foreground">
-							{t("Customize the text Discord renders as “Listening to …”. Track, artist and Ryotunes' application identity stay unchanged.")}
+							{t("Customize the text Discord renders as “Listening to …”. Track and artist stay unchanged.")}
 						</p>
 						<div class="mt-3 flex max-w-xl items-center gap-2">
 							<Input
 								bind:value={discordNameInput}
 								maxlength={128}
-								placeholder="Ryotunes"
+								placeholder="Ryotune Omni"
 								aria-label={t('Discord presence title')}
 							/>
 							<Button
@@ -458,14 +458,14 @@
 							<Button
 								variant="ghost"
 								size="sm"
-								disabled={savingDiscordName || discordNameInput === 'Ryotunes'}
+								disabled={savingDiscordName || discordNameInput === 'Ryotune Omni'}
 								onclick={resetDiscordName}
 							>
 								{t('Reset')}
 							</Button>
 						</div>
 						<p class="mt-2 text-xs text-muted-foreground">
-							{t('Preview:')} {t('Listening to')} {discordNameInput.trim() || 'Ryotunes'}
+							{t('Preview:')} {t('Listening to')} {discordNameInput.trim() || 'Ryotune Omni'}
 						</p>
 					</div>
 					<div class="flex items-start justify-between gap-4 border-b py-3">
@@ -619,7 +619,7 @@
 					</div>
 				{:else if tab === 'about'}
 					<div class="border-b py-3">
-						<div class="font-heading text-lg font-bold">Ryotunes</div>
+						<div class="font-heading text-lg font-bold">Ryotune Omni</div>
 						<p class="mt-1 text-sm text-muted-foreground">
 							{t("A focused Ryoku desktop music instrument: your YouTube Music library, local media controls, queue, lyrics and playback engine in one paper-and-ink surface.")}
 						</p>
@@ -628,7 +628,7 @@
 					<div class="border-b py-3">
 						<div class="font-medium">Software updates</div>
 						<p class="mt-0.5 text-sm text-muted-foreground">
-							You're on {appVersion || 'this build'}. Ryotunes checks GitHub only when you ask — nothing runs in the background.
+							You're on {appVersion || 'this build'}. Ryotune Omni checks GitHub only when you ask — nothing runs in the background.
 						</p>
 						<div class="mt-3 flex flex-wrap items-center gap-2">
 							<Button variant="outline" size="sm" onclick={checkForUpdates} disabled={updateBusy || updateStatus === 'installed'}>
@@ -645,9 +645,9 @@
 							{#if updateStatus === 'checking'}
 								Checking for a new version…
 							{:else if updateStatus === 'installing'}
-								Downloading and verifying the update, then asking for administrator approval. Keep Ryotunes open until it finishes.
+								Downloading and verifying the update, then asking for administrator approval. Keep Ryotune Omni open until it finishes.
 							{:else if updateStatus === 'installed'}
-								Ryotunes {installedVersion} is installed. Quit Ryotunes and open it again to finish — closing the window isn't enough; the background service reloads only on a full restart.
+								Ryotune Omni {installedVersion} is installed. Quit Ryotune Omni and open it again to finish — closing the window isn't enough; the background service reloads only on a full restart.
 							{:else if updateStatus === 'error'}
 								Update failed: {updateError}
 							{:else if update}
@@ -673,7 +673,7 @@
 					</div>
 					<div class="border-b py-3">
 						<div class="font-medium">Made by</div>
-						<p class="mt-0.5 text-sm text-muted-foreground">Ryotunes is built by two developers. Open their GitHub profiles:</p>
+						<p class="mt-0.5 text-sm text-muted-foreground">Ryotune Omni is independently maintained. Open the maintainers' GitHub profiles:</p>
 						<div class="mt-2 flex flex-wrap gap-2">
 							<Button variant="outline" size="sm" onclick={() => api.openExternal('https://github.com/ashmitvoid')}>ashmitvoid</Button>
 							<Button variant="outline" size="sm" onclick={() => api.openExternal('https://github.com/neur0map')}>neur0map</Button>
@@ -682,7 +682,7 @@
 					<div class="py-3">
 						<div class="font-medium">Open source</div>
 						<p class="mt-0.5 text-sm text-muted-foreground">
-							Ryotunes is a fork of LiMusic, released under the GNU General Public License v3.0 or later.
+							Ryotune Omni is an independently maintained derivative of Ryotunes and LiMusic, released under the GNU General Public License v3.0 or later.
 						</p>
 						<div class="mt-2 flex flex-wrap gap-2">
 							<Button variant="ghost" size="sm" onclick={() => api.openExternal('https://github.com/SimoHypers/limusic')}>LiMusic upstream</Button>

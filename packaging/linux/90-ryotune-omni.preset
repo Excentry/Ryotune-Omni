@@ -1,3 +1,3 @@
 # Enable socket activation for every user. Nothing runs until a client connects;
 # the native-only launcher can also start this unit when it is not yet active.
-enable ryotunesd.socket
+enable ryotune-omni-daemon.socket

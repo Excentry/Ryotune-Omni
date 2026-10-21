@@ -1,3 +1,9 @@
+echo 'This inherited AUR recipe installs upstream ryotunes and is disabled in Ryotune Omni.' >&2
+echo 'It cannot be used to install or replace Ryotune Omni.' >&2
+exit 2
+
+# Archived upstream PKGBUILD retained for reference only.
+if false; then
 # Maintainer: ashmitvoid <52139594+ashmitvoid at users dot noreply dot github dot com>
 pkgname=ryotunes-bin
 pkgver=2.2.0
@@ -29,3 +35,4 @@ sha256sums_x86_64=('2214e492c2402cf1f7ec6026cf94d630af6eafb2e272234876558bc03844
 package() {
   cp -a "$srcdir/usr" "$pkgdir/"
 }
+fi

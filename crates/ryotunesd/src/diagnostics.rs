@@ -4,7 +4,7 @@
 //! records it at the one chokepoint all responses pass), every panic (the hook below), and every
 //! failure the *client* saw (the `log_client_error` RPC — including failures the client buffers
 //! locally while the daemon is down) land in one ring buffer and one rotating log file under
-//! `$XDG_DATA_HOME/dev.ryoku.ryotunes/logs/`. The Settings ▸ Diagnostics page reads them back
+//! `$XDG_DATA_HOME/dev.excentry.ryotune-omni/logs/`. The Settings ▸ Diagnostics page reads them back
 //! through `get_logs`, so "some users can't play anything" becomes a list of lines instead of a
 //! guess. The file survives restarts (that is the point: a crash loop still leaves evidence);
 //! the ring is per-process and always available even if the disk is the thing that is broken.
@@ -28,8 +28,8 @@ use tracing_subscriber::Layer;
 const RING_MAX: usize = 2000;
 /// Rotate the log file at 2 MiB, keeping one previous generation (≈4 MiB worst case).
 const FILE_MAX_BYTES: u64 = 2 * 1024 * 1024;
-const FILE_NAME: &str = "ryotunesd.log";
-const ROTATED_NAME: &str = "ryotunesd.log.1";
+const FILE_NAME: &str = "daemon.log";
+const ROTATED_NAME: &str = "daemon.log.1";
 /// Bound one logged message so a pathological error (a giant upstream body) cannot poison the
 /// ring or the file.
 const MESSAGE_MAX_CHARS: usize = 2000;

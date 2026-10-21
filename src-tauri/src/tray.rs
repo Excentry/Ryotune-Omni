@@ -70,11 +70,11 @@ mod imp {
 
     impl Tray for RyotunesTray {
         fn id(&self) -> String {
-            "ryotunes".into()
+            "ryotune-omni".into()
         }
 
         fn title(&self) -> String {
-            "Ryotunes".into()
+            "Ryotune Omni".into()
         }
 
         fn icon_pixmap(&self) -> Vec<Icon> {
@@ -95,7 +95,7 @@ mod imp {
                 })
             };
             vec![
-                item("Show Ryotunes", "show"),
+                item("Show Ryotune Omni", "show"),
                 MenuItem::Separator,
                 item(if self.playing { "Pause" } else { "Play" }, "play_pause"),
                 item("Next", "next"),
@@ -153,7 +153,7 @@ mod imp {
     }
 
     pub fn init(app: &AppHandle) -> tauri::Result<()> {
-        let show = MenuItem::with_id(app, "show", "Show Ryotunes", true, None::<&str>)?;
+        let show = MenuItem::with_id(app, "show", "Show Ryotune Omni", true, None::<&str>)?;
         let play_pause = MenuItem::with_id(app, "play_pause", "Play", true, None::<&str>)?;
         let next = MenuItem::with_id(app, "next", "Next", true, None::<&str>)?;
         let prev = MenuItem::with_id(app, "prev", "Previous", true, None::<&str>)?;
@@ -176,7 +176,7 @@ mod imp {
         let mut builder = TrayIconBuilder::with_id("main")
             .menu(&menu)
             .show_menu_on_left_click(false)
-            .tooltip("Ryotunes")
+            .tooltip("Ryotune Omni")
             .on_menu_event(|app, event| handle_menu(app, event.id.as_ref()))
             .on_tray_icon_event(|tray, event| {
                 if let TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } = event {

@@ -3,10 +3,10 @@ name = "ryotunesd"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ryotunes playback daemon"
+description = "Ryotune Omni playback daemon"
 
 [[bin]]
-name = "ryotunesd"
+name = "ryotune-omni-daemon"
 path = "src/main.rs"
 
 [dependencies]

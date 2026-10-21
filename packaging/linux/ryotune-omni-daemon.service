@@ -1,0 +1,10 @@
+[Unit]
+Description=Ryotune Omni playback daemon
+After=graphical-session.target
+Requires=ryotune-omni-daemon.socket
+
+[Service]
+ExecStart=/usr/bin/ryotune-omni-daemon
+Environment=RUST_LOG=warn
+Restart=on-failure
+RestartSec=2

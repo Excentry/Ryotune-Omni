@@ -10,10 +10,9 @@
 # Version numbers written: the Cargo workspace, the workspace members in
 # Cargo.lock (never the coincidentally-named registry crates), the Tauri config,
 # the web UI package, the native QML client's version file, and the Arch PKGBUILD
-# (pkgver, pkgrel pinned to 1, and the
-# permanent epoch=1 that lets pacman upgrade a machine off the legacy 2.x line
-# onto 1.x). It is idempotent: running it twice is a no-op, and the changelog is
-# only rolled once per version.
+# (pkgver, pkgrel pinned to 1). No epoch is used: Ryotune Omni installs beside
+# the original package. Running the script twice is a no-op, and the changelog
+# is only rolled once per version.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,18 +32,12 @@ sed -i '0,/^version = "[0-9][0-9.]*"$/s//version = "'"$ver"'"/' Cargo.toml
 sed -i 's/"version": "[0-9][0-9.]*"/"version": "'"$ver"'"/' src-tauri/tauri.conf.json
 sed -i 's/"version": "[0-9][0-9.]*"/"version": "'"$ver"'"/' ui/package.json
 # The native QML client reads its own APP version from this file at runtime
-# (Quickshell.shellDir + '/version'); it ships inside /usr/share/ryotunes/client.
+# (Quickshell.shellDir + '/version'); it ships inside /usr/share/ryotune-omni/client.
 printf '%s\n' "$ver" > client/version
 # Arch package: pkgver tracks the version with hyphens stripped (makepkg forbids
-# them, e.g. 0.1.0-alpha.1 -> 0.1.0alpha.1), pkgrel is the release-asset contract's
-# fixed 1, epoch=1 is permanent so 1:X.Y.Z outranks the installed 2.x.
+# them, e.g. 0.1.0-alpha.1 -> 0.1.0alpha.1), pkgrel is fixed at 1.
 pkgver="${ver//-/}"
 sed -i 's/^pkgver=.*/pkgver='"$pkgver"'/; s/^pkgrel=.*/pkgrel=1/' packaging/arch/PKGBUILD
-if grep -q '^epoch=' packaging/arch/PKGBUILD; then
-  sed -i 's/^epoch=.*/epoch=1/' packaging/arch/PKGBUILD
-else
-  sed -i '/^pkgrel=/a epoch=1' packaging/arch/PKGBUILD
-fi
 
 # Cargo.lock: bump only the workspace members (path crates), matched by the names
 # the workspace actually declares, so registry crates that happen to be at the
@@ -71,7 +64,7 @@ for name in names:
     )
 lock_path.write_text(lock)
 
-metadata = root / "packaging/linux/dev.ryoku.ryotunes.metainfo.xml"
+metadata = root / "packaging/linux/dev.excentry.ryotune-omni.metainfo.xml"
 text = metadata.read_text()
 current = re.search(r'<releases>\s*<release version="([^"]+)"', text)
 if current is None:

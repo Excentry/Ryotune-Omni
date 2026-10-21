@@ -5,13 +5,30 @@ pub use wire::{ErrorBody, Event, Incoming, Outgoing, Request, Response, PROTOCOL
 
 use std::path::PathBuf;
 
-/// `$XDG_RUNTIME_DIR/ryotunes/ryotunesd.sock`, or `/tmp/ryotunes-<uid>/ryotunesd.sock` without a
+/// `$XDG_RUNTIME_DIR/ryotune-omni/daemon.sock`, or `/tmp/ryotune-omni-<uid>/daemon.sock` without a
 /// runtime dir (a bare TTY login). The directory is created by the daemon with mode 0700.
 pub fn socket_path() -> PathBuf {
-    let dir = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).unwrap_or_else(|| {
-        std::env::temp_dir().join(format!("ryotunes-{}", unsafe { libc_uid() }))
-    });
-    dir.join("ryotunes").join("ryotunesd.sock")
+    match std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from) {
+        Some(dir) => dir.join("ryotune-omni").join("daemon.sock"),
+        None => std::env::temp_dir()
+            .join(format!("ryotune-omni-{}", unsafe { libc_uid() }))
+            .join("daemon.sock"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::socket_path;
+
+    #[test]
+    fn socket_uses_omni_specific_path() {
+        let path = socket_path();
+        assert_eq!(path.file_name().unwrap(), "daemon.sock");
+        let parent = path.parent().unwrap();
+        assert!(
+            parent.ends_with("ryotune-omni") || parent.to_string_lossy().contains("ryotune-omni-")
+        );
+    }
 }
 
 // No libc dependency for one call: read the uid from the kernel.

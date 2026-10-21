@@ -141,7 +141,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Single-instance handshake, mirroring `tauri-plugin-single-instance`: hold `ryotunesd.sock.lock`
+/// Single-instance handshake, mirroring `tauri-plugin-single-instance`: hold `daemon.sock.lock`
 /// under `flock(LOCK_EX | LOCK_NB)` for the process lifetime, so a second daemon cannot fight this
 /// one over the shared SQLite/mpv state. `Some(lock)` — we are the instance, keep the handle open.
 /// `None` — an incumbent holds the lock; we asked it to `show`, printed its reply, and should exit 0.
@@ -150,7 +150,7 @@ fn acquire_or_show(path: &Path) -> anyhow::Result<Option<std::fs::File>> {
     std::fs::create_dir_all(dir)?;
     use std::os::unix::fs::PermissionsExt;
     let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
-    let lock_path = dir.join("ryotunesd.sock.lock");
+    let lock_path = dir.join("daemon.sock.lock");
     let file =
         std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(&lock_path)?;
     // Safe: a plain advisory-lock syscall on a fd we own.
@@ -162,10 +162,10 @@ fn acquire_or_show(path: &Path) -> anyhow::Result<Option<std::fs::File>> {
     if err.raw_os_error() != Some(libc::EWOULDBLOCK) {
         return Err(anyhow::anyhow!("locking {}: {err}", lock_path.display()));
     }
-    // Another ryotunesd is live: a second launch means "show the window" (or launch the client).
+    // Another Omni daemon is live: a second launch means "show the window" (or launch the client).
     match forward_show(path) {
         Ok(response) => println!("{response}"),
-        Err(e) => eprintln!("ryotunesd already running; `show` request failed: {e}"),
+        Err(e) => eprintln!("Ryotune Omni daemon already running; `show` request failed: {e}"),
     }
     Ok(None)
 }

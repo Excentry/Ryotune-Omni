@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
+echo 'The Ryoku replacement package is inherited upstream tooling and is disabled in Ryotune Omni.' >&2
+echo 'Ryotune Omni installs as a separate application; do not use this script to replace Ryotunes.' >&2
+exit 2
+
+# Archived upstream replacement-package implementation follows for reference only.
+if false; then
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/dist}"
@@ -297,3 +304,4 @@ BREADME
 
 echo "release assets written to $OUT"
 cat "$OUT/SHA256SUMS-v$VERSION.txt"
+fi

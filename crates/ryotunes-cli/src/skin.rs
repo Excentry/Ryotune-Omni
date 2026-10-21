@@ -434,7 +434,7 @@ fn data_home() -> String {
 
 /// The same search order the client uses (Skin.qml): dev dirs, the user dir, the store's
 /// library (`~/.local/share/ryoku/ryotunes-skins`, what RyoStore installs into), then the shipped
-/// dir (`/usr/share/ryotunes/skins` when installed, `./skins` in a checkout). First hit per id wins.
+/// dir (`/usr/share/ryotune-omni/skins` when installed, `./skins` in a checkout). First hit per id wins.
 fn skin_dirs() -> Vec<(Origin, PathBuf)> {
     let mut dirs = Vec::new();
     if let Ok(v) = std::env::var("RYOTUNES_SKIN_DIRS") {
@@ -442,9 +442,9 @@ fn skin_dirs() -> Vec<(Origin, PathBuf)> {
             dirs.push((Origin::Dev, PathBuf::from(d)));
         }
     }
-    dirs.push((Origin::User, PathBuf::from(format!("{}/ryotunes/skins", config_home()))));
+    dirs.push((Origin::User, PathBuf::from(format!("{}/ryotune-omni/skins", config_home()))));
     dirs.push((Origin::Store, PathBuf::from(format!("{}/ryoku/ryotunes-skins", data_home()))));
-    let ship = PathBuf::from("/usr/share/ryotunes/skins");
+    let ship = PathBuf::from("/usr/share/ryotune-omni/skins");
     if ship.is_dir() {
         dirs.push((Origin::Shipped, ship));
     }
@@ -586,7 +586,7 @@ fn plural(n: usize) -> &'static str {
 fn cmd_list() -> i32 {
     let cat = catalogue();
     if cat.is_empty() {
-        println!("no skins found (looked in RYOTUNES_SKIN_DIRS, ~/.config/ryotunes/skins, ./skins, /usr/share/ryotunes/skins)");
+        println!("no skins found (looked in RYOTUNES_SKIN_DIRS, ~/.config/ryotune-omni/skins, ./skins, /usr/share/ryotune-omni/skins)");
         return 0;
     }
     println!("{:<18}{:<10}{:<10}{}", "id", "source", "version", "name");
@@ -646,7 +646,7 @@ fn cmd_show(id: Option<&str>) -> i32 {
 }
 
 /// `skin use <id|system>`: select a skin by merging `"skin"` into the client's prefs file
-/// (`~/.config/ryotunes/client.json`). The running client watches that file and repaints; no
+/// (`~/.config/ryotune-omni/client.json`). The running client watches that file and repaints; no
 /// daemon involved. Every other key in the file is kept.
 fn cmd_use(id: Option<&str>) -> i32 {
     let Some(id) = id else {
@@ -663,7 +663,7 @@ fn cmd_use(id: Option<&str>) -> i32 {
             return 1;
         }
     }
-    let path = PathBuf::from(format!("{}/ryotunes/client.json", config_home()));
+    let path = PathBuf::from(format!("{}/ryotune-omni/client.json", config_home()));
     let mut prefs: serde_json::Map<String, serde_json::Value> = match fs::read_to_string(&path) {
         Ok(t) => serde_json::from_str::<serde_json::Value>(&t)
             .ok()

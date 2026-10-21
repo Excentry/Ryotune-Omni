@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // Linux ships `ryotunes` as a thin launcher for the native Quickshell client; it never runs the
+    // Linux ships `ryotune-omni` as a thin launcher for the native Quickshell client; it never runs the
     // Tauri app. macOS and Windows still run the bundled Tauri player.
     #[cfg(target_os = "linux")]
     {
@@ -14,11 +14,11 @@ fn main() {
     }
 }
 
-/// On Linux the installed `/usr/bin/ryotunes` (the desktop's keybind, dock and launcher) hands
-/// `ryotunesd` a `show`, which raises the connected client or opens the native `ryotunes-qml`
+/// On Linux the installed `/usr/bin/ryotune-omni` (the desktop's keybind, dock and launcher) hands
+/// `ryotune-omni-daemon` a `show`, which raises the connected client or opens the native `ryotune-omni-qml`
 /// client. Connecting to the socket is what starts the daemon — systemd socket activation, or a
 /// direct spawn on a box without systemd — so a cold boot lands in the native client too. There is
-/// deliberately no Tauri route on Linux: `--tauri`/`RYOTUNES_TAURI` are gone, and a machine that
+/// deliberately no Tauri route on Linux: a machine that
 /// cannot reach the daemon gets a real error rather than a second player on the same audio device.
 #[cfg(target_os = "linux")]
 mod native {
@@ -33,20 +33,20 @@ mod native {
         // Fast path: a live daemon (its client already up) or an idle systemd-activated socket
         // answers the first `show` straight away.
         if show(&sock).is_ok() {
-            log("asked ryotunesd to show the native client");
+            log("asked ryotune-omni-daemon to show the native client");
             return;
         }
         // Nothing is listening: bring the daemon up ourselves, then raise the client. Never Tauri.
         if let Err(e) = ensure_daemon() {
-            log(&format!("could not start ryotunesd: {e}"));
+            log(&format!("could not start ryotune-omni-daemon: {e}"));
             std::process::exit(1);
         }
         match show_until_ready(&sock) {
-            Ok(()) => log("asked ryotunesd to show the native client"),
+            Ok(()) => log("asked ryotune-omni-daemon to show the native client"),
             Err(e) => {
                 eprintln!(
-                    "ryotunes: could not reach the Ryotunes daemon (ryotunesd): {e}\n\
-                     Start it with `systemctl --user start ryotunesd.socket`, or run `ryotunesd`."
+                    "ryotune-omni: could not reach its daemon (ryotune-omni-daemon): {e}\n\
+                     Start it with `systemctl --user start ryotune-omni-daemon.socket`, or run `ryotune-omni-daemon`."
                 );
                 std::process::exit(1);
             }
@@ -101,12 +101,12 @@ mod native {
         spawn_daemon()
     }
 
-    /// `systemctl --user start ryotunesd.socket`: true when systemd accepted it, so the socket is now
+    /// `systemctl --user start ryotune-omni-daemon.socket`: true when systemd accepted it, so the socket is now
     /// listening and the next connect activates the service. False when there is no working user
     /// systemd or the unit is absent — the caller then spawns the daemon directly.
     fn start_socket_unit() -> bool {
         Command::new("systemctl")
-            .args(["--user", "--no-block", "start", "ryotunesd.socket"])
+            .args(["--user", "--no-block", "start", "ryotune-omni-daemon.socket"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -115,10 +115,10 @@ mod native {
             .unwrap_or(false)
     }
 
-    /// Spawn `ryotunesd` detached. Its single-instance handshake either becomes the daemon (binding
+    /// Spawn `ryotune-omni-daemon` detached. Its single-instance handshake either becomes the daemon (binding
     /// the socket after clearing a stale file) or forwards `show` to a live one and exits.
     fn spawn_daemon() -> std::io::Result<()> {
-        Command::new("ryotunesd")
+        Command::new("ryotune-omni-daemon")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -128,6 +128,6 @@ mod native {
 
     // The tracing subscriber lives in the daemon; this launcher only prints to stderr.
     fn log(msg: &str) {
-        eprintln!("ryotunes: {msg}");
+        eprintln!("ryotune-omni: {msg}");
     }
 }

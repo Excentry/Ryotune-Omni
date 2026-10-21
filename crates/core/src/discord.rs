@@ -48,7 +48,7 @@ use innertube::SongItem;
 /// Discord application id (a snowflake — digits only). This id is inherited from upstream LiMusic:
 /// Discord's `oauth2/applications/<id>/rpc` still returns the name "Limusic" and its lemon icon.
 /// That portal identity is **not** Ryotunes-owned and can only be changed by whoever holds the app
-/// in Discord's developer portal, so a Ryotunes-owned Application ID is pending; until one exists
+/// in Discord's developer portal, so an Omni-owned Application ID is pending; until one exists
 /// this stays put rather than repointing at an unrelated app. The card no longer leans on it — it
 /// sets its own activity `name` ([`DEFAULT_PRESENCE_NAME`]) and artwork ([`BRAND_IMAGE`]). No bot
 /// user, OAuth redirect or client secret is needed.
@@ -61,7 +61,7 @@ const SONG_URL: &str = "https://music.youtube.com/watch?v=";
 /// application's portal icon (the upstream lemon). Verified reachable, `200 image/png` (512×512).
 const BRAND_IMAGE: &str =
     "https://raw.githubusercontent.com/ryoku-dev/ryotunes/main/src-tauri/icons/icon.png";
-const BRAND_BADGE_TEXT: &str = "Ryotunes";
+const BRAND_BADGE_TEXT: &str = "Ryotune Omni";
 
 /// Reconnect backoff while enabled but unconnected (Discord not running, or it quit). Starts short
 /// — Discord may simply be slower to start than we are — and eases off so a permanently-absent
@@ -83,7 +83,7 @@ const DURATION_GRACE: Duration = Duration::from_millis(800);
 const MIN_WAIT: Duration = Duration::from_millis(10);
 /// Discord rejects `details`/`state`/`large_text` outside 2–128 characters.
 const MAX_FIELD: usize = 128;
-pub const DEFAULT_PRESENCE_NAME: &str = "Ryotunes";
+pub const DEFAULT_PRESENCE_NAME: &str = "Ryotune Omni";
 
 /// Vanity text used by Discord's "Listening to …" activity label. Empty resets to the default;
 /// every non-empty value must satisfy Discord's 2–128 character field contract.

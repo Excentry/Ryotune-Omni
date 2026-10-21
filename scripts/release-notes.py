@@ -32,11 +32,11 @@ def release_notes(tag):
     authored = section.group(1).strip() if section else ''
     changes = git('log', '--no-merges', '--format=%s (%h)', f'{previous}..{tag}' if previous else tag)
     commits = [f'- {line}' for line in changes.splitlines() if not line.startswith('release: v')]
-    package = f'ryotunes-{tag[1:]}-1-x86_64.pkg.tar.zst'
-    sections = [f'# Ryotunes {tag}', authored, generated]
+    package = f'ryotune-omni-{tag[1:]}-1-x86_64.pkg.tar.zst'
+    sections = [f'# Ryotune Omni {tag}', authored, generated]
     if commits:
         sections.append('## Changes in this push\n\n' + '\n'.join(commits))
-    sections.append(f'''## Install or update (Arch / CachyOS / Ryoku)
+    sections.append(f'''## Install (Arch)
 
 Download `{package}` and `{package}.sha256`, then:
 
@@ -45,12 +45,11 @@ sha256sum -c {package}.sha256
 sudo pacman -U ./{package}
 ```
 
-The package includes Ryotunes, ryotunesd, the CLI and native QML client. Its permanent
-pacman epoch makes the new v1 series an upgrade from legacy v2 installations.
-`ryoku update` can consume the same package. Independently, use **About → Check for
-new version → Update** (administrator approval required).
+The package includes Ryotune Omni, its daemon, CLI and native QML client. It installs
+separately from upstream `ryotunes` and never replaces that package. Use **About →
+Check for new version → Update** for an in-app update (administrator approval required).
 
-After installing, **Quit Ryotunes and reopen it**, rather than only closing the
+After installing, **Quit Ryotune Omni and reopen it**, rather than only closing the
 window, to reload the client and background daemon. Source archives and SHA-256
 sidecars are attached alongside the binary package.''')
     return '\n\n'.join(s for s in sections if s) + '\n'

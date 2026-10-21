@@ -25,11 +25,11 @@ use crate::lifecycle::Lifecycle;
 use crate::methods::normalize_proxy_setting;
 use crate::sink::SocketSink;
 
-/// The XDG directories Tauri resolves on Linux for `dev.ryoku.ryotunes`, so the daemon shares the
-/// app's data (`$XDG_DATA_HOME/dev.ryoku.ryotunes`) and audio cache
-/// (`$XDG_CACHE_HOME/dev.ryoku.ryotunes/audio`). A relative/unset `XDG_*` is ignored per the spec.
+/// The XDG directories Tauri resolves on Linux for `dev.excentry.ryotune-omni`, so daemon and host
+/// share `$XDG_DATA_HOME/dev.excentry.ryotune-omni` and
+/// `$XDG_CACHE_HOME/dev.excentry.ryotune-omni/audio`. Existing Ryotunes data is never migrated.
 pub fn paths() -> Paths {
-    const APP_ID: &str = "dev.ryoku.ryotunes";
+    const APP_ID: &str = "dev.excentry.ryotune-omni";
     Paths {
         data_dir: xdg_dir("XDG_DATA_HOME", ".local/share").join(APP_ID),
         cache_dir: xdg_dir("XDG_CACHE_HOME", ".cache").join(APP_ID).join("audio"),
@@ -80,22 +80,7 @@ pub fn build(
         let _ = std::fs::set_permissions(&cache_dir, private_dir);
     }
 
-    // Same database name and legacy-name migration as the Tauri app: adopt the sole sibling
-    // `.sqlite` when the new file is absent, so a build switch never abandons state.
     let db_path = data_dir.join("ryotunes.sqlite");
-    if !db_path.exists() {
-        if let Ok(entries) = std::fs::read_dir(&data_dir) {
-            let mut candidates = entries.filter_map(Result::ok).map(|e| e.path()).filter(|p| {
-                p.extension().and_then(|x| x.to_str()) == Some("sqlite") && p != &db_path
-            });
-            if let Some(previous) = candidates.next() {
-                if candidates.next().is_none() && std::fs::rename(&previous, &db_path).is_err() {
-                    let _ = std::fs::copy(&previous, &db_path);
-                }
-            }
-        }
-    }
-
     let db = Arc::new(Db::open(&db_path)?);
     #[cfg(unix)]
     {

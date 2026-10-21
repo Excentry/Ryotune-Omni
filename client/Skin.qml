@@ -10,7 +10,7 @@ import Ryoku.Ui.Singletons
 //   "system"   Ryoku's live theme through Tokens (the wallpaper palette or the named scheme,
 //              shell.json's font and decor) - the default on a Ryoku desktop.
 //   <id>       a skin directory `<dir>/<id>/skin.json`, looked up in order:
-//                $RYOTUNES_SKIN_DIRS (colon list, dev)   > ~/.config/ryotunes/skins  > <shellDir>/../skins
+//                $RYOTUNES_SKIN_DIRS (colon list, dev)   > ~/.config/ryotune-omni/skins  > <shellDir>/../skins
 //              so a user skin shadows a shipped one of the same id. `matugen` is just a skin
 //              whose file matugen writes (matugen/ryotunes.json is the template).
 //
@@ -25,7 +25,7 @@ Singleton {
     // --- paths -------------------------------------------------------------------------------
     readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
     readonly property string dataHome: Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")
-    readonly property string userDir: configHome + "/ryotunes/skins"
+    readonly property string userDir: configHome + "/ryotune-omni/skins"
     // What RyoStore installs (category `ryotunes-skins`, one folder per product with a receipt).
     readonly property string storeDir: dataHome + "/ryoku/ryotunes-skins"
     readonly property string shippedDir: Quickshell.shellDir + "/../skins"
@@ -260,7 +260,7 @@ Singleton {
     FileView { path: root.userDir; watchChanges: true; printErrors: false; onFileChanged: rescan.restart() }
     Timer { id: rescan; interval: 400; onTriggered: root.reload() }
 
-    // ~/.config/ryotunes/skins exists from the first run, so "Open skins folder" and a matugen
+    // ~/.config/ryotune-omni/skins exists from the first run, so "Open skins folder" and a matugen
     // template have somewhere to land.
     Process {
         id: mkuser

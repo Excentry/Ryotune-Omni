@@ -25,9 +25,9 @@ const IDLE_EXIT_GRACE: Duration = Duration::from_secs(5 * 60);
 /// Stable Wayland identity used by Tauri/GTK and Hyprland. `enableGTKAppId` in tauri.conf.json is
 /// what makes this the actual Wayland app id instead of merely Tauri's bundle identifier.
 #[cfg(target_os = "linux")]
-const RYOTUNES_APP_ID: &str = "dev.ryoku.ryotunes";
+const RYOTUNES_APP_ID: &str = "dev.excentry.ryotune-omni";
 #[cfg(target_os = "linux")]
-const RYOTUNES_MAIN_TITLE: &str = "Ryotunes";
+const RYOTUNES_MAIN_TITLE: &str = "Ryotune Omni";
 
 /// Ryoku v2.3 installs a persistent `hl.window_rule` drop-in through the Arch replacement package,
 /// exactly like Ryoku Settings/Ryowalls. Do not append transient `windowrulev2` values at runtime:
