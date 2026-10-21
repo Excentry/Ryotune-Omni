@@ -4904,6 +4904,7 @@ dependencies = [
  "ryotunes-core",
  "ryotunes-protocol",
  "ryotunes-soundcloud",
+ "ryotunes-spotify",
  "ryotunes-tidal",
  "serde",
  "serde_json",

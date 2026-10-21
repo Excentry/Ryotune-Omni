@@ -174,6 +174,36 @@ fn spotify_add_route(playlist_id: &str) -> Option<SpotifyAddTarget> {
     }
 }
 
+#[async_trait::async_trait]
+trait SpotifyAddWriter: Sync {
+    async fn save_track(&self, track_id: &str) -> Result<(), ErrorBody>;
+    async fn add_to_playlist(&self, playlist_id: &str, track_id: &str) -> Result<(), ErrorBody>;
+}
+
+#[async_trait::async_trait]
+impl SpotifyAddWriter for ryotunes_spotify::Client {
+    async fn save_track(&self, track_id: &str) -> Result<(), ErrorBody> {
+        self.set_track_saved(track_id, true).await.map_err(spotify_err)
+    }
+
+    async fn add_to_playlist(&self, playlist_id: &str, track_id: &str) -> Result<(), ErrorBody> {
+        self.add_track_to_playlist(playlist_id, track_id).await.map_err(spotify_err)
+    }
+}
+
+async fn add_to_playlist_spotify(
+    writer: &dyn SpotifyAddWriter,
+    target: SpotifyAddTarget,
+    video_id: &str,
+) -> Result<Value, ErrorBody> {
+    let tid = spotify_track_id(video_id).ok_or_else(|| spotify_err("Not a Spotify track."))?;
+    match target {
+        SpotifyAddTarget::Liked => writer.save_track(tid).await?,
+        SpotifyAddTarget::Playlist(pid) => writer.add_to_playlist(&pid, tid).await?,
+    }
+    ok(true)
+}
+
 /// A SoundCloud crate error as the daemon's error body.
 fn soundcloud_err(e: impl ToString) -> ErrorBody {
     ErrorBody { code: "soundcloud".into(), message: e.to_string() }
@@ -728,17 +758,7 @@ impl Dispatch for Methods {
                 let video_id = arg::<String>(&params, "videoId")?;
                 if let Some(target) = spotify_add_route(&playlist_id) {
                     let client = st.spotify.client().await.ok_or_else(spotify_signed_out)?;
-                    let tid = spotify_track_id(&video_id)
-                        .ok_or_else(|| spotify_err("Not a Spotify track."))?;
-                    match target {
-                        SpotifyAddTarget::Liked => {
-                            client.set_track_saved(&tid, true).await.map_err(spotify_err)?;
-                        }
-                        SpotifyAddTarget::Playlist(pid) => {
-                            client.add_track_to_playlist(&pid, &tid).await.map_err(spotify_err)?;
-                        }
-                    }
-                    return ok(true);
+                    return add_to_playlist_spotify(&*client, target, &video_id).await;
                 }
                 if radio::is_radio_id(&video_id) {
                     return Err(err("Live radio stations cannot be added to song playlists."));
@@ -2455,17 +2475,123 @@ mod tests {
         assert!(spotify_add_route("").is_none());
     }
 
-    #[test]
-    fn add_to_playlist_spotify_route_answers_true_on_success() {
-        let target = spotify_add_route("spotify:playlist:liked").unwrap();
-        let result = match target {
-            SpotifyAddTarget::Liked | SpotifyAddTarget::Playlist(_) => ok(true).unwrap(),
-        };
+    #[derive(Clone, Debug, PartialEq)]
+    enum Write {
+        Save(String),
+        Add(String, String),
+    }
+
+    struct FakeAddWriter {
+        writes: std::sync::Mutex<Vec<Write>>,
+        error: Option<ErrorBody>,
+    }
+
+    impl FakeAddWriter {
+        fn new() -> Self {
+            Self { writes: std::sync::Mutex::new(Vec::new()), error: None }
+        }
+
+        fn failing(message: &str) -> Self {
+            Self {
+                writes: std::sync::Mutex::new(Vec::new()),
+                error: Some(ErrorBody { code: "spotify".into(), message: message.into() }),
+            }
+        }
+
+        fn writes(&self) -> Vec<Write> {
+            self.writes.lock().unwrap().clone()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl SpotifyAddWriter for FakeAddWriter {
+        async fn save_track(&self, track_id: &str) -> Result<(), ErrorBody> {
+            self.writes.lock().unwrap().push(Write::Save(track_id.to_owned()));
+            match self.error.clone() {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+
+        async fn add_to_playlist(
+            &self,
+            playlist_id: &str,
+            track_id: &str,
+        ) -> Result<(), ErrorBody> {
+            self.writes
+                .lock()
+                .unwrap()
+                .push(Write::Add(playlist_id.to_owned(), track_id.to_owned()));
+            match self.error.clone() {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn add_to_playlist_spotify_branch_answers_true_on_the_wire() {
+        let liked = FakeAddWriter::new();
+        let result =
+            add_to_playlist_spotify(&liked, SpotifyAddTarget::Liked, "spotify:track:TR1").await;
+        assert_eq!(result.unwrap(), json!(true));
+        assert_eq!(liked.writes(), vec![Write::Save("TR1".into())]);
+
+        let playlist = FakeAddWriter::new();
+        let result = add_to_playlist_spotify(
+            &playlist,
+            SpotifyAddTarget::Playlist("PL9".into()),
+            "spotify:track:TR2",
+        )
+        .await
+        .unwrap();
         assert_eq!(result, json!(true));
+        assert_eq!(playlist.writes(), vec![Write::Add("PL9".into(), "TR2".into())]);
         assert_eq!(
             ryotunes_protocol::Outgoing::Response(ryotunes_protocol::Response::ok(9, result))
                 .to_line(),
             "{\"id\":9,\"result\":true}\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn add_to_playlist_spotify_keeps_write_failures_as_errors() {
+        let writer = FakeAddWriter::failing("quota exceeded");
+        let failure = add_to_playlist_spotify(
+            &writer,
+            SpotifyAddTarget::Playlist("PL9".into()),
+            "spotify:track:TR1",
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(failure.code, "spotify");
+        assert_eq!(failure.message, "quota exceeded");
+        assert_eq!(writer.writes(), vec![Write::Add("PL9".into(), "TR1".into())]);
+    }
+
+    #[tokio::test]
+    async fn add_to_playlist_spotify_rejects_a_non_spotify_track_before_writing() {
+        let writer = FakeAddWriter::new();
+        let failure = add_to_playlist_spotify(&writer, SpotifyAddTarget::Liked, "dQw4w9WgXcQ")
+            .await
+            .unwrap_err();
+        assert_eq!(failure.code, "spotify");
+        assert!(failure.message.contains("Not a Spotify track"), "message: {}", failure.message);
+        assert!(writer.writes().is_empty());
+    }
+
+    #[test]
+    fn add_to_playlist_handler_returns_the_spotify_branch_result() {
+        let me = include_str!("methods.rs");
+        let from = me.find("\"add_to_playlist\" =>").expect("add_to_playlist dispatch arm");
+        let arm = &me[from..];
+        let to =
+            arm.find("if radio::is_radio_id").expect("YouTube fallback after the Spotify branch");
+        let spotify = &arm[..to];
+        assert!(spotify.contains("spotify_add_route(&playlist_id)"), "Spotify route gate present");
+        assert!(
+            spotify.contains("return add_to_playlist_spotify("),
+            "the Spotify route must answer the socket with the shared branch result"
         );
     }
 }
