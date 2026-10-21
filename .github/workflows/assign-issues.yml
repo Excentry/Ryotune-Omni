@@ -19,20 +19,57 @@ jobs:
               excentry: 'IsaVonxz-type',
               'isavonxz-type': 'Excentry',
             };
-            const opener = context.payload.issue.user.login;
+            const issue = context.payload.issue;
+            const labelNames = new Set(issue.labels.map(label => typeof label === 'string' ? label : label.name));
+            const labelsToAdd = new Set();
+            const hasLabelPrefix = prefix => [...labelNames].some(label => label.startsWith(prefix));
+
+            if (!hasLabelPrefix('status:')) labelsToAdd.add('status: needs-triage');
+            if (!hasLabelPrefix('type:')) {
+              const prefix = issue.title.match(/^\[(bug|request)\]/i)?.[1]?.toLowerCase();
+              if (prefix === 'bug') labelsToAdd.add('type: bug');
+              if (prefix === 'request') labelsToAdd.add('type: feature');
+            }
+
+            const lines = (issue.body || '').split(/\r?\n/);
+            const heading = lines.findIndex(line => line.trim().toLowerCase() === '### target platform');
+            let platform = '';
+            for (let i = heading + 1; heading >= 0 && i < lines.length; i++) {
+              platform = lines[i].trim();
+              if (platform) break;
+            }
+            const platformLabels = {
+              'Windows': ['platform: windows'],
+              'Android': ['platform: android'],
+              'Linux reference': ['platform: linux-reference'],
+              'Cross-platform': ['platform: windows', 'platform: android'],
+            };
+            for (const label of platformLabels[platform] || []) {
+              if (!labelNames.has(label)) labelsToAdd.add(label);
+            }
+
+            if (labelsToAdd.size > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [...labelsToAdd],
+              });
+              core.info(`Added labels: ${[...labelsToAdd].join(', ')}`);
+            }
+
+            const opener = issue.user.login;
             const assignee = ASSIGN_TO[opener.toLowerCase()];
             if (!assignee) {
               core.info(`No assignment rule for opener ${opener}; leaving unassigned.`);
-              return;
-            }
-            if (context.payload.issue.assignees.length > 0) {
+            } else if (issue.assignees.length > 0) {
               core.info('Issue already has an assignee; leaving it as is.');
-              return;
+            } else {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: [assignee],
+              });
+              core.info(`Issue opened by ${opener} assigned to ${assignee}.`);
             }
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              assignees: [assignee],
-            });
-            core.info(`Issue opened by ${opener} assigned to ${assignee}.`);

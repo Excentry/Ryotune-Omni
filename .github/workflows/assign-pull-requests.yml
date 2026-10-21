@@ -19,20 +19,62 @@ jobs:
               excentry: 'IsaVonxz-type',
               'isavonxz-type': 'Excentry',
             };
-            const opener = context.payload.pull_request.user.login;
+            const pullRequest = context.payload.pull_request;
+            const labelNames = new Set(pullRequest.labels.map(label => typeof label === 'string' ? label : label.name));
+            const labelsToAdd = new Set();
+            const hasLabelPrefix = prefix => [...labelNames].some(label => label.startsWith(prefix));
+
+            if (!hasLabelPrefix('status:')) labelsToAdd.add('status: needs-triage');
+            if (!hasLabelPrefix('type:')) {
+              const type = pullRequest.title.match(/^(feat|add|fix|docs)(?:\([^)]*\))?!?:/i)?.[1]?.toLowerCase();
+              const typeLabels = { feat: 'type: feature', add: 'type: feature', fix: 'type: bug', docs: 'type: docs' };
+              if (typeLabels[type]) labelsToAdd.add(typeLabels[type]);
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pullRequest.number,
+              per_page: 100,
+            });
+            const paths = files.map(file => file.filename);
+            const hasAny = prefixes => paths.some(path => prefixes.some(prefix => path.startsWith(prefix)));
+            const windowsPaths = paths.filter(path =>
+              path !== 'src-tauri/tauri.android.conf.json' && !path.startsWith('src-tauri/gen/android/')
+            );
+            if (windowsPaths.some(path =>
+              ['src-tauri/', 'ui/', 'crates/player/', 'crates/core/', 'docs/windows/']
+                .some(prefix => path.startsWith(prefix))
+            )) {
+              labelsToAdd.add('platform: windows');
+            }
+            if (hasAny(['android/', 'docs/android/', 'src-tauri/gen/android/']) || paths.includes('src-tauri/tauri.android.conf.json')) {
+              labelsToAdd.add('platform: android');
+            }
+            if (hasAny(['client/', 'crates/ryotunesd/', 'crates/core/', 'crates/protocol/', 'packaging/arch/', 'packaging/linux/', 'packaging/void/', 'aur/'])) {
+              labelsToAdd.add('platform: linux-reference');
+            }
+
+            const missingLabels = [...labelsToAdd].filter(label => !labelNames.has(label));
+            if (missingLabels.length > 0) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: pullRequest.number, labels: missingLabels });
+              core.info(`Added labels: ${missingLabels.join(', ')}`);
+            }
+
+            const opener = pullRequest.user.login;
             const assignee = ASSIGN_TO[opener.toLowerCase()];
             if (!assignee) {
               core.info(`No assignment rule for opener ${opener}; leaving unassigned.`);
-              return;
-            }
-            if (context.payload.pull_request.assignees.length > 0) {
+            } else if (pullRequest.assignees.length > 0) {
               core.info('Pull request already has an assignee; leaving it as is.');
-              return;
+            } else {
+              await github.rest.issues.addAssignees({
+                owner,
+                repo,
+                issue_number: pullRequest.number,
+                assignees: [assignee],
+              });
+              core.info(`Pull request opened by ${opener} assigned to ${assignee}.`);
             }
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              assignees: [assignee],
-            });
-            core.info(`Pull request opened by ${opener} assigned to ${assignee}.`);
