@@ -4,7 +4,7 @@
 		image = '',
 		code = 'MUSIC-01',
 		title = '音',
-		sub = 'RYOTUNES',
+		sub = 'RYOTUNES OMNI',
 		caption = 'Playback instrument',
 		status = 'READY',
 		readout = [],

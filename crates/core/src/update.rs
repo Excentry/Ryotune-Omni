@@ -167,11 +167,11 @@ async fn installation() -> Result<Manager, String> {
     owner.arg(if manager == Manager::Pacman { "-Qoq" } else { "-o" }).arg(exe).kill_on_drop(true);
     match tokio::time::timeout(Duration::from_secs(10), owner.output()).await {
         Ok(Ok(output)) if output.status.success() && owns(manager, &output.stdout) => Ok(manager),
-        _ => Err("This copy of Ryotune Omni is not installed from its package, so it cannot update itself. Install the Omni package from its release page; development builds are never overwritten.".into()),
+        _ => Err("This copy of Ryotunes Omni is not installed from its package, so it cannot update itself. Install the Omni package from its release page; development builds are never overwritten.".into()),
     }
 }
 
-/// Whether owner query names Ryotune Omni, never the upstream Ryotunes package.
+/// Whether owner query names Ryotunes Omni, never the upstream Ryotunes package.
 fn owns(manager: Manager, stdout: &[u8]) -> bool {
     match manager {
         Manager::Pacman => stdout == b"ryotune-omni\n",
@@ -207,7 +207,7 @@ async fn installed_package_version(manager: Manager) -> Result<Option<String>, S
         .map_err(|_| "Timed out reading the installed package.")?
         .map_err(|e| format!("Could not query the installed package: {e}"))?;
     if !output.status.success() {
-        return Err("Could not query the installed Ryotune Omni package.".into());
+        return Err("Could not query the installed Ryotunes Omni package.".into());
     }
     let text = String::from_utf8_lossy(&output.stdout);
     Ok(match manager {
@@ -329,7 +329,8 @@ pub async fn install_update(requested: String) -> Result<InstalledUpdate, String
     if let Some(installed_version) = installed_package_version(manager).await? {
         if version(&installed_version) > version(&requested) {
             return Err(
-                "A newer package is already installed. Quit Ryotune Omni and open it again.".into(),
+                "A newer package is already installed. Quit Ryotunes Omni and open it again."
+                    .into(),
             );
         }
         if installed_version == requested {
@@ -367,7 +368,7 @@ async fn install_pacman(path: &Path, requested: &str) -> Result<(), String> {
     let expected_identity = format!("ryotune-omni {requested}-1\n");
     if !output.status.success() || output.stdout != expected_identity.as_bytes() {
         return Err(
-            "Downloaded package identity does not match the selected Ryotune Omni release.".into(),
+            "Downloaded package identity does not match the selected Ryotunes Omni release.".into(),
         );
     }
     // Explicit Update click + polkit approval authorizes just this package transaction. Retain
@@ -411,7 +412,7 @@ async fn install_xbps(package: &Path, staging: &Path, requested: &str) -> Result
         Command::new("/usr/bin/xbps-create")
             .current_dir(&repo)
             .args(["-q", "-A", "x86_64", "-n", &pkgver, "-l", "GPL-3.0-or-later", "-H", REPOSITORY])
-            .args(["-s", "Ryotune Omni music player and playback daemon"])
+            .args(["-s", "Ryotunes Omni music player and playback daemon"])
             .args(["-D", &depends])
             .arg(&root),
         "build the xbps package",
@@ -528,7 +529,7 @@ fn unpack(package: &Path, root: &Path, requested: &str) -> Result<(), String> {
     }
     if !pkginfo_matches(&pkginfo, requested) {
         return Err(
-            "Downloaded package identity does not match the selected Ryotune Omni release.".into(),
+            "Downloaded package identity does not match the selected Ryotunes Omni release.".into(),
         );
     }
     Ok(())

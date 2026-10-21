@@ -3,7 +3,7 @@ name = "sync-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ryotunes Listen Together sync server (self-hosted WebSocket hub)"
+description = "Ryotunes Omni Listen Together sync server (self-hosted WebSocket hub)"
 
 [[bin]]
 name = "ryotune-omni-sync-server"

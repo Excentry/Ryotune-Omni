@@ -38,7 +38,7 @@ for member in cargo['workspace']['members']:
 config = json.loads(read('src-tauri/tauri.conf.json'))
 req(config.get('version') == version, 'Tauri version does not match workspace')
 req(config.get('identifier') == 'dev.excentry.ryotune-omni', 'Tauri application identifier is not Ryotune Omni')
-req(config.get('productName') == 'Ryotune Omni', 'Tauri product name is not Ryotune Omni')
+req(config.get('productName') == 'Ryotunes Omni', 'Tauri product name is not Ryotunes Omni')
 req(config.get('mainBinaryName') == 'ryotune-omni', 'Tauri main binary is not ryotune-omni')
 req(json.loads(read('ui/package.json')).get('version') == version,
     'UI version does not match workspace')
@@ -46,7 +46,7 @@ req(read('client/version').strip() == version,
     'native QML client version file does not match workspace')
 appstream = ET.fromstring(read('packaging/linux/dev.excentry.ryotune-omni.metainfo.xml'))
 req(appstream.findtext('id') == 'dev.excentry.ryotune-omni', 'AppStream application identifier is not Ryotune Omni')
-req(appstream.findtext('name') == 'Ryotune Omni', 'AppStream display name is not Ryotune Omni')
+req(appstream.findtext('name') == 'Ryotunes Omni', 'AppStream display name is not Ryotunes Omni')
 req(appstream.find('releases/release').get('version') == version,
     'AppStream release version does not match workspace')
 arch = read('packaging/arch/PKGBUILD')
@@ -68,7 +68,7 @@ for manifest, package_name, bin_name in [
         f'{manifest} does not declare binary {bin_name}')
 
 desktop = read('packaging/linux/ryotune-omni.desktop')
-req('Name=Ryotune Omni' in desktop and 'Exec=ryotune-omni' in desktop
+req('Name=Ryotunes Omni' in desktop and 'Exec=ryotune-omni' in desktop
     and 'Icon=ryotune-omni' in desktop, 'desktop launcher identity is inconsistent')
 socket_unit = read('packaging/linux/ryotune-omni-daemon.socket')
 req('ListenStream=%t/ryotune-omni/daemon.sock' in socket_unit,

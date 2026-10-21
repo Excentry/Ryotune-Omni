@@ -32,7 +32,7 @@ const MAX_ERROR_LEN: usize = 600;
 const MAX_COMPONENT_BYTES: usize = 120;
 const STAGING_DIR: &str = ".ryotunes-incomplete";
 const INTERRUPTED_MSG: &str =
-    "Download interrupted when Ryotunes stopped. Retry to download it again.";
+    "Download interrupted when Ryotunes Omni stopped. Retry to download it again.";
 const JOB_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// Container/codec choice. `Original` keeps the source stream (no re-encode); `Mp3`/`Opus`
@@ -75,7 +75,7 @@ pub struct DownloadSettings {
 }
 
 impl DownloadSettings {
-    /// First-run defaults: the XDG Music dir's `Ryotunes/`, original format, one worker, organized
+    /// First-run defaults: the XDG Music dir's `Ryotunes Omni/`, original format, one worker, organized
     /// by artist with metadata embedded. Does not touch the filesystem — the folder is created on
     /// the first `set_download_settings` or the first download.
     fn defaults() -> Self {
@@ -705,7 +705,7 @@ fn new_job(
 
 fn ensure_running(state: &State) -> Result<(), String> {
     if state.stopping {
-        Err("Ryotunes is shutting down.".into())
+        Err("Ryotunes Omni is shutting down.".into())
     } else {
         Ok(())
     }
@@ -1591,10 +1591,10 @@ fn expand_tilde(raw: &str) -> String {
     }
 }
 
-/// The default download folder: the XDG Music directory's `Ryotunes/`, falling back to
-/// `$HOME/Music/Ryotunes`.
+/// The default download folder: the XDG Music directory's `Ryotunes Omni/`, falling back to
+/// `$HOME/Music/Ryotunes Omni`.
 fn default_music_dir() -> PathBuf {
-    music_root().join("Ryotunes")
+    music_root().join("Ryotunes Omni")
 }
 
 /// The user's Music directory: `$XDG_MUSIC_DIR` if absolute, then the `user-dirs.dirs`
@@ -1695,6 +1695,11 @@ mod tests {
             None,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn first_run_download_folder_is_named_for_omni() {
+        assert_eq!(default_music_dir().file_name().unwrap(), "Ryotunes Omni");
     }
     fn settings(directory: &Path, workers: u32) -> DownloadSettings {
         DownloadSettings {

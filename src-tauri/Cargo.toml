@@ -3,7 +3,7 @@ name = "ryotunes"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ryotune Omni desktop music client"
+description = "Ryotunes Omni desktop music client"
 rust-version = "1.80"
 
 [[bin]]

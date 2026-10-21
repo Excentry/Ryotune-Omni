@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>dev.excentry.ryotune-omni</id>
-  <name>Ryotune Omni</name>
+  <name>Ryotunes Omni</name>
   <summary>An independent music player</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <description>
-    <p>Discover and play music with Ryotune Omni, an independent project based on Ryotunes.</p>
+    <p>Discover and play music with Ryotunes Omni, an independent project based on Ryotunes.</p>
     <p>A native interface brings together lyrics, downloads, queue management, and desktop media controls.</p>
   </description>
   <launchable type="desktop-id">ryotune-omni.desktop</launchable>

@@ -94,7 +94,7 @@ ColumnLayout {
         }
         Text {
             Layout.fillWidth: true
-            text: "Everything Ryotunes and its background service got wrong, newest first — including failures from before this session. Use it when something \"works for everyone else but me\"."
+            text: "Everything Ryotunes Omni and its background service got wrong, newest first — including failures from before this session. Use it when something \"works for everyone else but me\"."
             color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
         }
     }

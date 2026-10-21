@@ -105,7 +105,7 @@
 		connecting = true;
 		try {
 			await api.lastfmConnect();
-			toast('Approve Ryotunes in your browser');
+			toast('Approve Ryotunes Omni in your browser');
 		} catch (err) {
 			connecting = false;
 			toast.error(String(err));
@@ -144,7 +144,7 @@
 		<div class="pointer-events-none ml-3 mr-2 flex items-center gap-2">
 <span class="ryoku-rule"></span>
 <span class="ryoku-mark">力</span>
-<span class="ryoku-wordmark">RYOTUNES</span>
+<span class="ryoku-wordmark">RYOTUNES OMNI</span>
 </div>
 		
 		<button

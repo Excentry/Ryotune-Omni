@@ -1031,7 +1031,7 @@ fn transfer_path(mut path: std::path::PathBuf) -> Result<std::path::PathBuf, Str
             Ok(path)
         }
         Some(ext) if ext == "json" => Ok(path),
-        _ => Err("Ryotunes playlist files must end in .json".into()),
+        _ => Err("Ryotunes Omni playlist files must end in .json".into()),
     }
 }
 
@@ -1044,7 +1044,7 @@ fn safe_transfer_name(title: &str) -> String {
         .take(80)
         .collect();
     if cleaned.trim_matches([' ', '.', '-']).is_empty() {
-        "Ryotunes Playlist".into()
+        "Ryotunes Omni Playlist".into()
     } else {
         cleaned
     }
@@ -1092,9 +1092,9 @@ pub async fn export_playlist_file(
     let Some(chosen) = app
         .dialog()
         .file()
-        .set_title("Export Ryotunes playlist")
+        .set_title("Export Ryotunes Omni playlist")
         .set_file_name(file_name)
-        .add_filter("Ryotunes playlist", &["json"])
+        .add_filter("Ryotunes Omni playlist", &["json"])
         .blocking_save_file()
     else {
         return Ok(false);
@@ -1130,8 +1130,8 @@ pub async fn import_playlist_file(
     let Some(chosen) = app
         .dialog()
         .file()
-        .set_title("Import Ryotunes playlist")
-        .add_filter("Ryotunes playlist", &["json"])
+        .set_title("Import Ryotunes Omni playlist")
+        .add_filter("Ryotunes Omni playlist", &["json"])
         .blocking_pick_file()
     else {
         return Ok(None);
@@ -1147,7 +1147,7 @@ pub async fn import_playlist_file(
     }
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     let mut transfer: PlaylistTransfer = serde_json::from_slice(&bytes)
-        .map_err(|_| "That is not a Ryotunes playlist file.".to_string())?;
+        .map_err(|_| "That is not a Ryotunes Omni playlist file.".to_string())?;
     if transfer.version != 1 || transfer.items.len() > 5_000 {
         return Err("That playlist file version or size is not supported.".into());
     }

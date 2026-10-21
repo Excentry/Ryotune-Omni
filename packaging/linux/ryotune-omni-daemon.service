@@ -1,5 +1,5 @@
 [Unit]
-Description=Ryotune Omni playback daemon
+Description=Ryotunes Omni playback daemon
 After=graphical-session.target
 Requires=ryotune-omni-daemon.socket
 

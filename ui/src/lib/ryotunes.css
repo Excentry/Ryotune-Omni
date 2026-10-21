@@ -2164,7 +2164,7 @@ html[data-ryoku-reduced-motion="true"] .ryo-lyrics-resolving-foot i::after { ani
 }
 .ryo-overlay-sheet:not(.ryo-settings-hub) { padding-top:42px !important; }
 .ryo-overlay-sheet::before {
-  content:"—  力  RYOTUNES / CONTROL                                      +  ///";
+  content:"—  力  RYOTUNES OMNI / CONTROL                                      +  ///";
   position:absolute; left:0; right:0; top:0; height:29px; display:flex; align-items:center;
   padding:0 11px; border-bottom:1px solid var(--ryo-line-soft); overflow:hidden; white-space:pre;
   color:var(--ryo-ink-faint); font:6.5px "SpaceMono Nerd Font",monospace; letter-spacing:1.05px;

@@ -625,7 +625,7 @@
 			toast.error(t('Could not load the full playlist for export'));
 			return;
 		}
-		const title = pl?.title?.trim() || 'Ryotunes Playlist';
+		const title = pl?.title?.trim() || 'Ryotunes Omni Playlist';
 		if (!pl) return;
 		try {
 			if (await api.exportPlaylistFile(title, pl.items)) toast.success(t('Playlist exported'));

@@ -21,7 +21,11 @@ const FALLBACK_SERVERS: [&str; 3] = [
     "https://nl1.api.radio-browser.info",
     "https://at1.api.radio-browser.info",
 ];
-const USER_AGENT: &str = "Ryotunes/2.4 (+https://github.com/ashmitvoid/ryotunes)";
+const USER_AGENT: &str = concat!(
+    "Ryotunes Omni/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://github.com/Excentry/Ryotune-Omni)"
+);
 const STATION_CACHE_MAX: usize = 256;
 const MAX_QUERY_CHARS: usize = 128;
 const MAX_RADIO_RESPONSE_BYTES: usize = 2 * 1024 * 1024;

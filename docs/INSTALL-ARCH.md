@@ -19,6 +19,10 @@ Both packages may remain installed; uninstalling `ryotune-omni` leaves Ryotunes
 files and profile untouched. Omni uses a fresh profile and does not migrate
 Ryotunes data.
 
+New profiles default downloads to `Ryotunes Omni` under the user's Music
+directory. Existing configured download paths and downloaded files are not
+renamed or moved automatically.
+
 This fork does not integrate with Ryoku's upstream package update commands.
 
 Removing the package stops only its own daemon and activation socket. It does not

@@ -165,7 +165,7 @@ fn acquire_or_show(path: &Path) -> anyhow::Result<Option<std::fs::File>> {
     // Another Omni daemon is live: a second launch means "show the window" (or launch the client).
     match forward_show(path) {
         Ok(response) => println!("{response}"),
-        Err(e) => eprintln!("Ryotune Omni daemon already running; `show` request failed: {e}"),
+        Err(e) => eprintln!("Ryotunes Omni daemon already running; `show` request failed: {e}"),
     }
     Ok(None)
 }

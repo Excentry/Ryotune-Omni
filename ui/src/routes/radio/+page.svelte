@@ -116,7 +116,7 @@
 	<RyokuPageHeader
 		eyebrow="MUSIC / AIRWAVES"
 		title={t('Radio')}
-		blurb={t("Live stations from around the world, played through Ryotunes' native audio engine.")}
+		blurb={t("Live stations from around the world, played through Ryotunes Omni's native audio engine.")}
 		code="RADIO · DIRECTORY"
 		artTitle="電波"
 		artSub="LIVE RADIO"
@@ -129,7 +129,7 @@
 		<div class="radio-console-copy">
 			<span>{t('// RADIO BROWSER / LIVE DIRECTORY')}</span>
 			<strong>{query ? `Results for “${query}”` : t('Popular stations')}</strong>
-			<p>{t('Station discovery is demand-driven: Ryotunes only contacts the directory when this page is opened, searched or extended.')}</p>
+			<p>{t('Station discovery is demand-driven: Ryotunes Omni only contacts the directory when this page is opened, searched or extended.')}</p>
 		</div>
 		<form
 			class="radio-search"

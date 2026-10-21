@@ -17,7 +17,7 @@ use crate::stream::{resolve, PlaybackInfo, Quality, Stream};
 use crate::{Error, Result};
 
 const API: &str = "https://api.tidal.com/v1";
-const USER_AGENT: &str = concat!("Ryotunes/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("Ryotunes Omni/", env!("CARGO_PKG_VERSION"));
 
 /// The hook the host registers to persist a rotated token.
 type RotateHook = Arc<dyn Fn(TidalAuth) + Send + Sync>;

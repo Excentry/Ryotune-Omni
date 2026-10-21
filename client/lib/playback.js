@@ -184,8 +184,8 @@ function applyEvent(s, name, data) {
             return null;
         }
         if (sc === "waiting") {
-            s.soundcloud = { signedIn: false, name: null, error: "Finish signing in at soundcloud.com in your browser \u2014 Ryotunes picks the session up automatically." };
-            return { toast: "Opened soundcloud.com in your browser \u2014 sign in there and Ryotunes will connect", kind: "info" };
+            s.soundcloud = { signedIn: false, name: null, error: "Finish signing in at soundcloud.com in your browser \u2014 Ryotunes Omni picks the session up automatically." };
+            return { toast: "Opened soundcloud.com in your browser \u2014 sign in there and Ryotunes Omni will connect", kind: "info" };
         }
         if (sc === "expired") {
             s.soundcloud = { signedIn: false, name: null, error: "" };

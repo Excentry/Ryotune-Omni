@@ -9,7 +9,7 @@
 
 <div class="ryo-route-failure" role="alert">
 	<div class="ryo-route-failure-mark"><HugeiconsIcon icon={AlertCircleIcon} class="h-6 w-6" /></div>
-	<p class="ryo-route-failure-kicker">RYOTUNES / RECOVERY</p>
+	<p class="ryo-route-failure-kicker">RYOTUNES OMNI / RECOVERY</p>
 	<h1>{t('This view could not be opened.')}</h1>
 	<p>{page.error?.message ?? t('An unexpected interface error occurred. Playback can continue while the view recovers.')}</p>
 	<div class="ryo-route-failure-actions">

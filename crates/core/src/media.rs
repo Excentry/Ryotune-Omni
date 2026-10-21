@@ -107,7 +107,7 @@ fn run(commands: UnboundedSender<MediaControlEvent>, rx: std::sync::mpsc::Receiv
     // ignores it.
     let hwnd = None;
 
-    let config = PlatformConfig { dbus_name: "ryotune-omni", display_name: "Ryotune Omni", hwnd };
+    let config = PlatformConfig { dbus_name: "ryotune-omni", display_name: "Ryotunes Omni", hwnd };
     let mut controls = match MediaControls::new(config) {
         Ok(c) => c,
         Err(e) => {

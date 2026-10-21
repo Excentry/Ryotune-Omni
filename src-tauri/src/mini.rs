@@ -46,7 +46,7 @@ pub fn open(app: &AppHandle) -> Result<(), String> {
     }
 
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
-        .title("Ryotune Omni Mini")
+        .title("Ryotunes Omni Mini")
         .inner_size(W, H)
         .resizable(false)
         .decorations(false)

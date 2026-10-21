@@ -36,7 +36,7 @@ Item {
 
     // Editable-field mirrors, seeded on load so typing never fights the settings binding.
     property string proxyInput: ""
-    property string discordNameInput: "Ryotune Omni"
+    property string discordNameInput: "Ryotunes Omni"
     property bool forkOpen: false
     property string forkName: ""
 
@@ -85,7 +85,7 @@ Item {
             page.settings = res[0] || ({});
             page.clients = res[1] || [];
             page.proxyInput = page.settings.proxy || "";
-            page.discordNameInput = (page.settings.discord_presence_name || "").trim() || "Ryotune Omni";
+            page.discordNameInput = (page.settings.discord_presence_name || "").trim() || "Ryotunes Omni";
             page.loaded = true;
             page.loadDiscord();
         }).catch((e) => { page.loaded = true; Playback.toast((e && e.message) ? e.message : String(e), "error"); });
@@ -147,7 +147,7 @@ Item {
         page.setSetting("discord_rpc", on ? "true" : "false").then(() => page.loadDiscord());
     }
     function saveDiscordName() {
-        var value = page.discordNameInput.trim() || "Ryotune Omni";
+        var value = page.discordNameInput.trim() || "Ryotunes Omni";
         var n = value.length;
         if (n < 2 || n > 128) {
             Playback.toast("Discord presence title must be between 2 and 128 characters", "error");
@@ -233,7 +233,7 @@ Item {
         var lock = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryotune-omni/daemon.sock.lock";
         Quickshell.execDetached([
             "sh", "-c",
-            "flock -w 60 \"$1\" -c true 2>/dev/null; exec ryotunes",
+            "flock -w 60 \"$1\" -c true 2>/dev/null; exec ryotune-omni",
             "ryotunes-update-restart", lock
         ]);
         Daemon.call("quit").catch(() => {});
@@ -241,15 +241,15 @@ Item {
     }
     function updateMessage() {
         if (page.updateStatus === "checking") return "Checking for a new version…";
-        if (page.updateStatus === "installing") return "Downloading and verifying the update, then asking for administrator approval. Keep Ryotune Omni open until it finishes.";
-        if (page.updateStatus === "installed") return "Ryotune Omni " + page.installedVersion + " installed — restarting Ryotune Omni to finish. If the window is still here, quit it and open it again; the background service reloads only on a full restart.";
+        if (page.updateStatus === "installing") return "Downloading and verifying the update, then asking for administrator approval. Keep Ryotunes Omni open until it finishes.";
+        if (page.updateStatus === "installed") return "Ryotunes Omni " + page.installedVersion + " installed — restarting Ryotunes Omni to finish. If the window is still here, quit it and open it again; the background service reloads only on a full restart.";
         if (page.updateStatus === "error") return "Update failed: " + page.updateError;
         var info = page.updateInfo;
         if (!info) return "";
         if (info.latestVersion === null || info.latestVersion === undefined) return "No release has been published yet.";
         if (info.available) {
             if (info.restartPending)
-                return "Ryotune Omni " + info.latestVersion + " is already installed. Restart Ryotune Omni to start using it.";
+                return "Ryotunes Omni " + info.latestVersion + " is already installed. Restart Ryotunes Omni to start using it.";
             var msg = "Version " + info.latestVersion + " is available.";
             if (!info.canInstall && info.unsupportedReason) msg += " " + info.unsupportedReason;
             return msg;
@@ -330,7 +330,7 @@ Item {
     function doExport(path) {
         var items = (Playback.queue && Playback.queue.items) ? Playback.queue.items : [];
         if (!items.length) return;
-        var title = (Playback.queue && Playback.queue.sourceName) ? Playback.queue.sourceName : "Ryotunes Queue";
+        var title = (Playback.queue && Playback.queue.sourceName) ? Playback.queue.sourceName : "Ryotunes Omni Queue";
         page.exporting = true;
         Daemon.call("export_playlist_file", { title: title, items: items, path: path })
             .then(() => { page.exporting = false; Playback.toast("Queue exported", "success"); })
@@ -376,7 +376,7 @@ Item {
     }
     Process {
         id: exportPicker
-        command: ["zenity", "--file-selection", "--save", "--confirm-overwrite", "--title=Export the queue", "--filename=ryotunes-queue.json"]
+        command: ["zenity", "--file-selection", "--save", "--confirm-overwrite", "--title=Export the queue", "--filename=ryotunes-omni-queue.json"]
         stdout: StdioCollector {
             id: exportOut
             onStreamFinished: { var p = exportOut.text.trim(); if (p) page.doExport(p); }
@@ -464,7 +464,7 @@ Item {
                         font.letterSpacing: 1
                     }
                     Text {
-                        text: "RYOTUNES // 設定"
+                        text: "RYOTUNES OMNI // 設定"
                         color: Tokens.inkFaint
                         font.family: Style.fontMono
                         font.pixelSize: Style.fs.xs
@@ -578,7 +578,7 @@ Item {
                         Text { Layout.fillWidth: true; text: "Skin"; color: Tokens.ink; font.family: Style.fontUi; font.pixelSize: Style.fs.md; font.weight: Font.Medium; wrapMode: Text.WordWrap }
                         Text {
                             Layout.fillWidth: true
-                            text: "The palette, type, motion and decor Ryotune Omni wears. System follows your desktop; add a folder under ~/.config/ryotune-omni/skins to add your own."
+                            text: "The palette, type, motion and decor Ryotunes Omni wears. System follows your desktop; add a folder under ~/.config/ryotune-omni/skins to add your own."
                             color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                         }
 
@@ -687,7 +687,7 @@ Item {
                             Text { Layout.fillWidth: true; text: "Theme"; color: Tokens.ink; font.family: Style.fontUi; font.pixelSize: Style.fs.md; font.weight: Font.Medium; wrapMode: Text.WordWrap }
                             Text {
                                 Layout.fillWidth: true
-                                text: "Follow the desktop automatically, or pin Ryotune Omni to the skin's light or dark mode."
+                                text: "Follow the desktop automatically, or pin Ryotunes Omni to the skin's light or dark mode."
                                 color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                             }
                         }
@@ -758,7 +758,7 @@ Item {
                     }
                     ToggleRow {
                         title: "Start on login"
-                        desc: "Launch Ryotune Omni automatically when you log in."
+                        desc: "Launch Ryotunes Omni automatically when you log in."
                         value: page.settings.autostart === "true"
                         onFlipped: (on) => page.setAutostart(on)
                     }
@@ -770,7 +770,7 @@ Item {
                         Text { text: "Interface scale"; color: Tokens.ink; font.family: Style.fontUi; font.pixelSize: Style.fs.md; font.weight: Font.Medium }
                         Text {
                             Layout.fillWidth: true
-                            text: "Preferred renderer scale, persisted for every Ryotune Omni client on this account."
+                            text: "Preferred renderer scale, persisted for every Ryotunes Omni client on this account."
                             color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                         }
                         Flow {
@@ -838,17 +838,17 @@ Item {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         visible: discordField.text.length === 0
-                                        text: "Ryotune Omni"
+                                        text: "Ryotunes Omni"
                                         color: Tokens.inkFaint
                                         font: discordField.font
                                     }
                                 }
                             }
                             Pill { label: "Save"; enabled: page.discordNameInput.trim().length > 0; onClicked: page.saveDiscordName() }
-                            Pill { label: "Reset"; enabled: page.discordNameInput !== "Ryotune Omni"; onClicked: { page.discordNameInput = "Ryotune Omni"; page.saveDiscordName(); } }
+                            Pill { label: "Reset"; enabled: page.discordNameInput !== "Ryotunes Omni"; onClicked: { page.discordNameInput = "Ryotunes Omni"; page.saveDiscordName(); } }
                         }
                         Text {
-                            text: "Preview: Listening to " + (page.discordNameInput.trim() || "Ryotune Omni")
+                            text: "Preview: Listening to " + (page.discordNameInput.trim() || "Ryotunes Omni")
                             color: Tokens.inkFaint; font.family: Style.fontUi; font.pixelSize: Style.fs.xs
                         }
                     }
@@ -1298,7 +1298,7 @@ Item {
                     SectionHeading { Layout.fillWidth: true; title: "Watched folders"; mark: "音源" }
                     Text {
                         Layout.fillWidth: true
-                        text: "Folders Ryotunes watches for files on disk. The daemon rescans them on demand."
+                        text: "Folders Ryotunes Omni watches for files on disk. The daemon rescans them on demand."
                         color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                     }
 
@@ -1372,7 +1372,7 @@ Item {
                         spacing: Style.sp(1)
                         Text {
                             Layout.fillWidth: true
-                            text: "Choose a Ryotunes playlist file; its tracks land in a new library playlist. Sign in first."
+                            text: "Choose a Ryotunes Omni playlist file; its tracks land in a new library playlist. Sign in first."
                             color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                         }
                         Pill {
@@ -1446,7 +1446,7 @@ Item {
                     SectionHeading { Layout.fillWidth: true; Layout.topMargin: Style.sp(3); title: "Software updates"; mark: "新" }
                     Text {
                         Layout.fillWidth: true
-                        text: "You're on " + (page.appVersion || Daemon.daemonVersion || "this build") + ". Ryotune Omni checks GitHub only when you ask — nothing runs in the background."
+                        text: "You're on " + (page.appVersion || Daemon.daemonVersion || "this build") + ". Ryotunes Omni checks GitHub only when you ask — nothing runs in the background."
                         color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                     }
                     RowLayout {
@@ -1521,7 +1521,7 @@ Item {
                     SectionHeading { Layout.fillWidth: true; Layout.topMargin: Style.sp(3); title: "Made by"; mark: "人" }
                     Text {
                         Layout.fillWidth: true
-                        text: "Ryotune Omni is independently maintained. Open the maintainers' GitHub profiles:"
+                        text: "Ryotunes Omni is independently maintained. Open the maintainers' GitHub profiles:"
                         color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                     }
                     RowLayout {
@@ -1535,7 +1535,7 @@ Item {
                     SectionHeading { Layout.fillWidth: true; Layout.topMargin: Style.sp(3); title: "Open source"; mark: "源" }
                     Text {
                         Layout.fillWidth: true
-                        text: "Ryotune Omni is an independently maintained derivative of Ryotunes and LiMusic, released under the GNU General Public License v3.0 or later."
+                        text: "Ryotunes Omni is independently maintained and derived from Ryotunes and LiMusic, released under the GNU General Public License v3.0 or later."
                         color: Tokens.inkMuted; font.family: Style.fontUi; font.pixelSize: Style.fs.sm; wrapMode: Text.WordWrap
                     }
                     RowLayout {

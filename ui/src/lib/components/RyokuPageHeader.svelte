@@ -5,7 +5,7 @@
 		title,
 		blurb = '',
 		image = '',
-		code = 'RYOTUNES',
+		code = 'RYOTUNES OMNI',
 		artTitle = '音',
 		artSub = 'MUSIC',
 		tate = '',

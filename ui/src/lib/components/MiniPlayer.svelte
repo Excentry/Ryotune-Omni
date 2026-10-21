@@ -102,13 +102,13 @@
 		<span class="ryo-mini-v2-live">// LIVE</span>
 		<div class="ryo-mini-v2-art-copy">
 			<strong>{now?.title ?? t('Nothing playing')}</strong>
-			<span>{now?.artists ?? t('Ryotunes is ready')}</span>
+			<span>{now?.artists ?? t('Ryotunes Omni is ready')}</span>
 		</div>
 	</section>
 
 	<section class="ryo-mini-v2-main">
 		<header class="ryo-mini-v2-head">
-			<div class="ryo-mini-v2-brand"><span class="ryo-mini-v2-rule"></span><b>力 RYOTUNES</b></div>
+			<div class="ryo-mini-v2-brand"><span class="ryo-mini-v2-rule"></span><b>力 RYOTUNES OMNI</b></div>
 			<nav class="ryo-mini-v2-tabs" aria-label={t('Mini player view')}>
 				<button class:active={view === 'now'} aria-pressed={view === 'now'} aria-label={t('Now playing')} title={t('Now playing')} onclick={() => (view = 'now')}><HugeiconsIcon icon={MusicNote01Icon} class="h-4 w-4" /></button>
 				<button class:active={view === 'lyrics'} aria-pressed={view === 'lyrics'} aria-label={t('Lyrics')} title={t('Lyrics')} onclick={() => (view = 'lyrics')}><HugeiconsIcon icon={Mic01Icon} class="h-4 w-4" /></button>
@@ -121,7 +121,7 @@
 					</button>
 				{/if}
 				<!-- This is deliberately an explicit “open full app” action. The window manager close\n				     path remains separate in Rust and never calls it. -->
-				<button onclick={() => api.closeMini().catch(() => {})} title={t('Open full Ryotunes')} aria-label={t('Open full Ryotunes')}><HugeiconsIcon icon={MaximizeScreenIcon} class="h-4 w-4" /></button>
+				<button onclick={() => api.closeMini().catch(() => {})} title={t('Open full Ryotunes Omni')} aria-label={t('Open full Ryotunes Omni')}><HugeiconsIcon icon={MaximizeScreenIcon} class="h-4 w-4" /></button>
 			</div>
 		</header>
 
@@ -130,7 +130,7 @@
 				<div class="ryo-mini-v2-now">
 					<div class="ryo-mini-v2-track">
 						<Marquee text={now?.title ?? t('Nothing playing')} class="ryo-mini-v2-title" />
-						<Marquee text={now?.artists ?? t('Ryotunes is ready')} class="ryo-mini-v2-artist" />
+						<Marquee text={now?.artists ?? t('Ryotunes Omni is ready')} class="ryo-mini-v2-artist" />
 					</div>
 					<div class="ryo-mini-v2-seek">
 						<span>{fmt(shownPosition)}</span>
