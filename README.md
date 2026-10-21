@@ -1,5 +1,20 @@
 ![Ryotune-Omni - Your music. New horizons. Windows and Android ports planned](docs/assets/ryotune-omni-banner.png)
 
+<div align="center">
+
+[![CI](https://github.com/Excentry/Ryotune-Omni/actions/workflows/ci.yml/badge.svg)](https://github.com/Excentry/Ryotune-Omni/actions/workflows/ci.yml)
+[![Security audit](https://github.com/Excentry/Ryotune-Omni/actions/workflows/security.yml/badge.svg)](https://github.com/Excentry/Ryotune-Omni/actions/workflows/security.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/github/license/Excentry/Ryotune-Omni)](LICENSE)
+[![Release: none verified](https://img.shields.io/badge/release-none%20verified-lightgrey)](docs/COMPATIBILITY.md)
+[![Windows: planned](https://img.shields.io/badge/Windows-planned-yellow)](docs/COMPATIBILITY.md)
+[![Android: planned](https://img.shields.io/badge/Android-planned-yellow)](docs/COMPATIBILITY.md)
+[![Independent project](https://img.shields.io/badge/project-independent-blue)](docs/COMPATIBILITY.md)
+[![Audio only](https://img.shields.io/badge/media-audio%20only-blueviolet)](docs/COMPATIBILITY.md)
+[![Rust core](https://img.shields.io/badge/core-Rust-orange)](docs/DEVELOPMENT.md)
+[![Playback engine: under validation](https://img.shields.io/badge/playback%20engine-under%20validation-lightgrey)](docs/COMPATIBILITY.md)
+
+</div>
+
 # Ryotune-Omni
 
 > **Your music. New horizons.**
