@@ -235,8 +235,8 @@ mod tests {
     fn accepts_bare_id_and_full_uri() {
         let bare = track_uri("4uLU6hMCjMI75M1A2tKUQC").unwrap();
         let full = track_uri("spotify:track:4uLU6hMCjMI75M1A2tKUQC").unwrap();
-        assert_eq!(bare.to_uri().unwrap(), "spotify:track:4uLU6hMCjMI75M1A2tKUQC");
-        assert_eq!(bare.to_uri().unwrap(), full.to_uri().unwrap());
+        assert_eq!(bare.to_uri(), "spotify:track:4uLU6hMCjMI75M1A2tKUQC");
+        assert_eq!(bare.to_uri(), full.to_uri());
     }
 
     #[test]

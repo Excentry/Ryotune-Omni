@@ -155,7 +155,7 @@ pub(crate) fn artists_from(artists: &[ArtistMessage]) -> (String, Vec<ArtistRef>
 }
 
 pub(crate) fn base62(gid: &[u8]) -> Option<String> {
-    librespot_core::SpotifyId::from_raw(gid).ok()?.to_base62().ok()
+    Some(librespot_core::SpotifyId::from_raw(gid).ok()?.to_base62())
 }
 
 fn non_empty(value: Option<&str>) -> Option<&str> {

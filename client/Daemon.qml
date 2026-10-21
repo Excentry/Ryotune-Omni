@@ -21,8 +21,9 @@ Singleton {
     // "warn"/"error"; Logs subscribes and forwards into the diagnostics record. Emitted as a
     // signal rather than calling Logs directly so the two singletons do not import each other.
     signal callFailed(string level, string target, string message)
-    // The `subscribe` reply: the full { playback, queue, settings, auth } snapshot, delivered on
-    // the first subscribe and again after every reconnect so Playback resynchronises each time.
+    // The `subscribe_events` reply: the full { playback, queue, settings, auth } snapshot,
+    // delivered on the first subscribe and again after every reconnect so Playback
+    // resynchronises each time.
     signal snapshot(var data)
 
     property int nextId: 1
@@ -69,7 +70,7 @@ Singleton {
         if (!root.connected)
             return Promise.reject({ code: "disconnected", message: "ryotunesd is not connected" });
         root.call("hello").then(h => { root.protocol = h.protocol; root.daemonVersion = h.daemon; });
-        const p = root.call("subscribe", { events: ["*"] });
+        const p = root.call("subscribe_events", { events: ["*"] });
         p.then(s => root.snapshot(s));
         return p;
     }

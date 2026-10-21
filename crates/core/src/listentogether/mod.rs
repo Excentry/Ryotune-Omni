@@ -685,4 +685,50 @@ mod tests {
         let events = sink.events.lock().unwrap();
         assert_eq!(events.last().map(|e| e.0), Some("lt-state"));
     }
+
+    #[tokio::test]
+    async fn lt_state_snapshot_carries_the_declared_fields() {
+        use crate::host::test_support::RecordingSink;
+        let sink = std::sync::Arc::new(RecordingSink::default());
+        let (session, _rx) = LtSession::new(sink, "wss://example.invalid".into());
+        let snap = { LtSession::snapshot_of(&*session.inner.lock().await) };
+        for key in [
+            "status",
+            "role",
+            "requesting",
+            "roomCode",
+            "myId",
+            "serverUrl",
+            "users",
+            "currentTrack",
+            "queue",
+            "pendingJoins",
+            "suggestions",
+        ] {
+            assert!(snap.get(key).is_some(), "lt-state must carry `{key}`: {snap}");
+        }
+        assert_eq!(snap["status"], "disconnected");
+        assert_eq!(snap["role"], "none");
+        assert_eq!(snap["requesting"], false);
+        assert_eq!(snap["serverUrl"], "wss://example.invalid");
+        assert!(snap["roomCode"].is_null());
+        assert!(snap["myId"].is_null());
+        assert!(snap["currentTrack"].is_null());
+        assert!(snap["users"].is_array());
+        assert!(snap["queue"].is_array());
+        assert!(snap["pendingJoins"].is_array());
+        assert!(snap["suggestions"].is_array());
+    }
+
+    #[tokio::test]
+    async fn lt_notice_payload_is_a_bare_string() {
+        use crate::host::test_support::RecordingSink;
+        let sink = std::sync::Arc::new(RecordingSink::default());
+        let (session, _rx) = LtSession::new(sink.clone(), "wss://example.invalid".into());
+        session.emit_notice("ada joined").await;
+        let events = sink.events.lock().unwrap();
+        let (name, payload) = events.last().expect("an event was emitted").clone();
+        assert_eq!(name, "lt-notice");
+        assert_eq!(payload, serde_json::json!("ada joined"));
+    }
 }
