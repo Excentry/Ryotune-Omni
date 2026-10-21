@@ -43,13 +43,13 @@ lto = "thin"
 codegen-units = 1
 strip = "symbols"
 
-# Spotify streaming (crates/spotify) needs librespot 0.8 with nolight132's librespot-audio fix; the
-# whole set is pinned to the fork rev Sonora uses so the librespot crates stay mutually consistent.
+# Spotify streaming uses the librespot fork with the audio fixes and RustSec dependency patches;
+# keep all crates pinned together so the librespot packages stay mutually consistent.
 # No other workspace crate depends on librespot, so this only affects crates/spotify.
 [patch.crates-io]
-librespot-audio = { git = "https://github.com/nolight132/librespot", rev = "e7eb953d5848fd97bacd00e6c0e33500765eaa63" }
-librespot-core = { git = "https://github.com/nolight132/librespot", rev = "e7eb953d5848fd97bacd00e6c0e33500765eaa63" }
-librespot-metadata = { git = "https://github.com/nolight132/librespot", rev = "e7eb953d5848fd97bacd00e6c0e33500765eaa63" }
-librespot-oauth = { git = "https://github.com/nolight132/librespot", rev = "e7eb953d5848fd97bacd00e6c0e33500765eaa63" }
-librespot-playback = { git = "https://github.com/nolight132/librespot", rev = "e7eb953d5848fd97bacd00e6c0e33500765eaa63" }
-librespot-protocol = { git = "https://github.com/nolight132/librespot", rev = "e7eb953d5848fd97bacd00e6c0e33500765eaa63" }
+librespot-audio = { git = "https://github.com/IsaVonxz-type/librespot", rev = "9897c52b829fed7394bf23cf9893d6718d3491ab" }
+librespot-core = { git = "https://github.com/IsaVonxz-type/librespot", rev = "9897c52b829fed7394bf23cf9893d6718d3491ab" }
+librespot-metadata = { git = "https://github.com/IsaVonxz-type/librespot", rev = "9897c52b829fed7394bf23cf9893d6718d3491ab" }
+librespot-oauth = { git = "https://github.com/IsaVonxz-type/librespot", rev = "9897c52b829fed7394bf23cf9893d6718d3491ab" }
+librespot-playback = { git = "https://github.com/IsaVonxz-type/librespot", rev = "9897c52b829fed7394bf23cf9893d6718d3491ab" }
+librespot-protocol = { git = "https://github.com/IsaVonxz-type/librespot", rev = "9897c52b829fed7394bf23cf9893d6718d3491ab" }

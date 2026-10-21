@@ -76,7 +76,7 @@ fn track_ids(album: &AlbumMessage) -> Vec<String> {
         .flat_map(|disc| disc.track.iter())
         .filter_map(|track| {
             let gid = track.gid.as_ref()?;
-            librespot_core::SpotifyId::from_raw(gid).ok()?.to_base62().ok()
+            Some(librespot_core::SpotifyId::from_raw(gid).ok()?.to_base62())
         })
         .collect()
 }
