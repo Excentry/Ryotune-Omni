@@ -360,7 +360,14 @@ pub fn run() {
             // OS media controls (MPRIS/SMTC/NowPlaying). Control presses arrive over `media_rx`;
             // the drain below routes them into AppState once it is managed. fail-soft policy, D11.
             let (media_tx, mut media_rx) = tokio::sync::mpsc::unbounded_channel();
-            let media = media::spawn(sink.clone(), media_tx);
+            #[cfg(target_os = "windows")]
+            let media_window = handle
+                .get_webview_window("main")
+                .and_then(|window| window.hwnd().ok())
+                .and_then(|hwnd| media::MediaWindowHandle::from_raw_value(hwnd.0 as usize));
+            #[cfg(not(target_os = "windows"))]
+            let media_window = None;
+            let media = media::spawn(sink.clone(), media_tx, media_window);
             // Taskbar preview buttons (#47). Windows-only, and a different API from the SMTC
             // session above.
             #[cfg(target_os = "windows")]
