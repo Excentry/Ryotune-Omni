@@ -1,4 +1,7 @@
-<!-- Use title format: type(scope): short description. See CONTRIBUTING.md#title-format. -->
+<!--
+Title format: feat(scope): short description. See CONTRIBUTING.md#title-format.
+Use `perf(scope): …` for performance-only changes.
+-->
 
 ## What changed
 
@@ -9,7 +12,7 @@
 - **Areas:** <!-- e.g. playback, provider, UI, Windows, Android, docs -->
 - **Platforms affected and tested:** <!-- Include OS/version, or say not runtime-tested. -->
 - **Behavior or compatibility impact:** <!-- Include user-visible changes or known limitations. -->
-- **Breaking change or migration:** <!-- None, or describe required steps. -->
+- **Breaking change or migration:** <!-- None, or describe required steps. Use `feat!` in the title for incompatible changes. -->
 
 ## Validation
 
