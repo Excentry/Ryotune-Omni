@@ -71,6 +71,25 @@ The launcher asks `ryotune-omni-daemon` to show its own client or open one. Its 
 
 Developers can build the repository directly. On Arch-based systems you need the normal Rust/Tauri frontend toolchain plus the runtime dependencies listed in `packaging/arch/PKGBUILD`.
 
+From the repository root, build and launch the standalone Ryotune Omni app with:
+
+```bash
+make run-omni
+```
+
+This builds the frontend and binaries, then opens the native Quickshell client;
+you do not need to locate or copy a binary path. `make build-omni` builds
+without launching. Quickshell (`qs`) and the Ryoku QML runtime are required to
+run. For options such as `--release`, call `scripts/dev/omni.sh` directly.
+
+The development launcher and daemon use the fork identity
+`dev.excentry.ryotune-omni`, socket `$XDG_RUNTIME_DIR/ryotune-omni/daemon.sock`,
+and profile `$XDG_DATA_HOME/dev.excentry.ryotune-omni` (default:
+`~/.local/share/dev.excentry.ryotune-omni`). They do not replace, invoke, or
+share a profile with upstream Ryotunes. A fresh profile requires signing in
+again; there is no automatic data migration. The build script does not install
+system files or create a package.
+
 ```bash
 cd ui
 pnpm install --frozen-lockfile
