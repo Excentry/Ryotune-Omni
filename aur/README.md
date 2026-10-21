@@ -1,8 +1,8 @@
-# ryotunes-bin AUR packaging
+# Inherited AUR packaging
 
-This directory is the AUR recipe for Ryotunes' precompiled x86_64 Linux release.
+This directory contains an upstream `ryotunes-bin` recipe. It is not a Ryotune Omni package and is not maintained for Omni.
 
-The AUR package downloads the versioned binary payload from the matching GitHub Release and repackages it for pacman. It does **not** build the Tauri/Rust/Svelte application locally.
+Do not use this recipe to install Omni. A distinct Omni AUR package requires a separate reviewed recipe and published Omni release.
 
 Before publishing or updating the AUR package:
 

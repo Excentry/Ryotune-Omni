@@ -102,7 +102,7 @@ A skin may ship both `dark` and `light`, or just one. In Settings, **Light / Dar
 2. `~/.config/ryotunes/skins/<id>/skin.json` — **user** skins; the `matugen` skin lives here.
 3. `~/.local/share/ryoku/ryotunes-skins/<id>/skin.json` — **store** skins, what RyoStore installs
    (its `ryotunes-skins` category; each folder carries the store's receipt).
-4. `<shellDir>/../skins/<id>/skin.json` — **shipped**: `/usr/share/ryotunes/skins` when installed,
+4. `<shellDir>/../skins/<id>/skin.json` — **shipped**: `/usr/share/ryotune-omni/skins` when installed,
    `./skins` in a checkout.
 
 So a user skin shadows a store install, which shadows a shipped skin of the same id. The user and
@@ -111,8 +111,8 @@ reload. `RYOTUNES_SKIN=<id>` pins a skin for one run (previews use this); `ryotu
 <id|system>` selects one from a shell (it writes `client.json`, and the running app repaints).
 
 ```
-/usr/share/ryotunes/skins/<id>/            shipped skins (skin.json, preview.png)
-/usr/share/ryotunes/matugen/ryotunes.json  the matugen template
+/usr/share/ryotune-omni/skins/<id>/            shipped skins (skin.json, preview.png)
+/usr/share/ryotune-omni/matugen/ryotunes.json  the matugen template
 ~/.local/share/ryoku/ryotunes-skins/<id>/  RyoStore installs (skin.json, preview, receipt)
 ~/.config/ryotunes/skins/<id>/             user skins
 ~/.config/ryotunes/skins/matugen/          the matugen-generated skin
@@ -149,14 +149,14 @@ desktop.
 ## matugen
 
 The `matugen` skin is just a skin whose file matugen writes from your wallpaper. The template shipped
-at `/usr/share/ryotunes/matugen/ryotunes.json` maps Material 3 roles to the eight skin colours in
+at `/usr/share/ryotune-omni/matugen/ryotunes.json` maps Material 3 roles to the eight skin colours in
 both modes, e.g. `"paper": "{{colors.surface.dark.hex}}"`, `"sun": "{{colors.primary.dark.hex}}"`.
 
 Add this to `~/.config/matugen/config.toml`:
 
 ```toml
 [templates.ryotunes]
-input_path = "/usr/share/ryotunes/matugen/ryotunes.json"
+input_path = "/usr/share/ryotune-omni/matugen/ryotunes.json"
 output_path = "~/.config/ryotunes/skins/matugen/skin.json"
 ```
 

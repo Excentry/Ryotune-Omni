@@ -30,4 +30,4 @@ This should not happen in current builds: album art and cards do not capture whe
 
 ## Full reset
 
-Uninstalling the package intentionally preserves personal application data. For a complete reset, first sign out of Ryotunes, close the app, then remove its `dev.ryoku.ryotunes` application-data directory using your desktop's normal per-user data location. Do not post that directory publicly because it can contain session state.
+Uninstalling the package intentionally preserves personal application data. For a complete reset, first sign out of Ryotune Omni, close the app, then remove its `dev.excentry.ryotune-omni` application-data directory using your desktop's normal per-user data location. Do not post that directory publicly because it can contain session state.

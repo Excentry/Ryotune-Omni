@@ -30,7 +30,7 @@ The inspected repository contains the inherited Linux-first application, its Rus
 - No Windows or Android application was compiled, run, or validated as part of this documentation review.
 - UI framework selection, target OS versions, Android ABIs, native-library packaging, and feature parity remain open engineering decisions.
 
-Inherited version numbers, application identifiers, package names, and update links still refer to Ryotunes. They are not evidence of a Ryotune-Omni release. This guide documents a direction, not an implemented migration.
+Inherited version numbers still describe the source baseline, not a Ryotune-Omni release. Application identity is now isolated as `dev.excentry.ryotune-omni`; its Linux data/config/cache and package names are separate from Ryotunes. Existing profiles are not migrated automatically.
 
 ## Vision and principles
 
@@ -85,9 +85,9 @@ The alternate Tauri host embeds the Svelte frontend and calls the shared core th
 
 ### State, storage, and desktop integration
 
-The Linux daemon resolves data under `$XDG_DATA_HOME/dev.ryoku.ryotunes` and audio cache under `$XDG_CACHE_HOME/dev.ryoku.ryotunes/audio`, with home-directory defaults. Its application setup opens `ryotunes.sqlite`; download settings/history use `downloads.json`. The QML client separately stores UI preferences in `$XDG_CONFIG_HOME/ryotunes/client.json`. The Tauri host uses Tauri's application-data/cache resolvers instead.
+The Ryotune Omni Linux daemon resolves data under `$XDG_DATA_HOME/dev.excentry.ryotune-omni` and audio cache under `$XDG_CACHE_HOME/dev.excentry.ryotune-omni/audio`, with home-directory defaults. Its application setup opens `ryotunes.sqlite`; download settings/history use `downloads.json`. The QML client separately stores UI preferences under `$XDG_CONFIG_HOME/ryotune-omni/client.json`. Tauri uses the same new identifier for its platform data/cache resolvers. The profile starts fresh; no existing Ryotunes data is copied.
 
-The normal daemon socket is `$XDG_RUNTIME_DIR/ryotunes/ryotunesd.sock`. Spotify audio currently passes from librespot into libmpv through a Unix FIFO; `crates/spotify/src/stream.rs` explicitly rejects this transport on non-Unix platforms. Authentication data, cookies, settings, local library paths, artwork and provider caches also need a target-specific storage and privacy review. Existing XDG/HOME assumptions, Unix permissions, filesystem URLs and external-process behavior must not be copied unchanged to Windows or Android.
+The normal daemon socket is `$XDG_RUNTIME_DIR/ryotune-omni/daemon.sock`, with its single-instance lock beside it. Spotify audio currently passes from librespot into libmpv through a Unix FIFO; `crates/spotify/src/stream.rs` explicitly rejects this transport on non-Unix platforms. Authentication data, cookies, settings, local library paths, artwork and provider caches also need a target-specific storage and privacy review. Existing XDG/HOME assumptions, Unix permissions, filesystem URLs and external-process behavior must not be copied unchanged to Windows or Android.
 
 Linux integrations include MPRIS/D-Bus media controls, StatusNotifierItem tray support, systemd user socket activation, Hyprland window rules, Ryoku live palette integration, and GTK/WebKitGTK authentication and JavaScript hosts. These are not portable application requirements. The daemon owns playback and active downloads independently of the visible client; equivalent lifecycle behavior is a porting goal, not a reason to reproduce systemd or a desktop daemon on mobile.
 
@@ -137,7 +137,7 @@ Ryotune-Omni uses its own release ledger, separate from Ryotunes. The inherited 
 - Documentation-only changes stay under `Unreleased`; they do not create tags or releases.
 - Create tags only through an explicitly reviewed Ryotune-Omni release. A tag must identify the exact source and artifacts for that release.
 
-The existing application manifests, self-updater, and package metadata still carry inherited Ryotunes identity. The release workflow validates synchronized versions and publishes nothing until a real, validated target is enabled. Do not enable a target until package identity, update routing, and runtime support are separated and validated.
+Application manifests and active Arch metadata use Ryotune Omni identity. The self-updater checks this repository and will install only a package owned as `ryotune-omni`; it never updates upstream `ryotunes`. The release workflow validates synchronized versions and publishes nothing until a real, validated target is enabled. Do not enable a target until runtime support is validated.
 
 ### Windows and Android
 

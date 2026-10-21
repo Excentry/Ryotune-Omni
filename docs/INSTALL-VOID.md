@@ -1,36 +1,11 @@
-# Install on Void Linux
+# Void Linux packaging status
 
-Releases only ship an Arch package. On Void it gets repacked into an `.xbps` on your machine and installed with xbps, so it's tracked like any other package.
+The Void install instructions and `packaging/void` recipe are inherited Ryotunes artifacts, not a supported Ryotune Omni distribution path. They install/update the upstream `ryotunes` package and must not be used to install Omni.
 
-## Install or update
+## Upstream-only legacy material
 
-From a clone or the release source tarball:
+`scripts/install-void.sh` is disabled in this fork to prevent installing the upstream app by mistake. Omni does not publish Void packages or support in-app updates on Void.
 
-```bash
-scripts/install-void.sh
-```
+The old steps below this heading are intentionally not retained. A Void port needs its own package recipe and validation before support is claimed.
 
-It downloads the latest release, checks the sha256, drops the systemd units (Void doesn't use them; `ryotunes` starts the daemon itself), builds `ryotunes-<version>_1` with the dependencies in `packaging/void/depends`, and installs it with `sudo xbps-install`.
-
-Then quit Ryotunes and open it again (closing the window isn't enough):
-
-```bash
-ryotunes-cli quit
-ryotunes
-```
-
-## Updating from inside the app
-
-Once installed this way (or from Ryoku's Void repo), **Settings → About → Update** works too. It does the same repack and asks polkit to run `xbps-install`, so you need a polkit agent running.
-
-v1.2.1 and older were built against glibc 2.44 and the daemon won't start on Void (glibc 2.41). Both the script and the in-app updater refuse such a release instead of installing it.
-
-## No cover art
-
-If songs play but covers stay blank, Qt can't do HTTPS. Void ships Qt's TLS backend separately:
-
-```bash
-sudo xbps-install qt6-plugin-tls-openssl
-```
-
-Then restart Ryotunes. The repacked package already depends on it. `ryotunes-diagnostics` shows whether it's there.
+For upstream Void installation instructions, consult the original Ryotunes project.

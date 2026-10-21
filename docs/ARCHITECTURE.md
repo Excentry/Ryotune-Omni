@@ -32,21 +32,21 @@ The workspace separates the playback core from whoever renders it. Phase 1 of th
 | `crates/innertube`, `crates/player`, `crates/listen-protocol`, `crates/sync-server` | unchanged | existing |
 | `crates/core` | `AppState`, orchestrator, db, lyrics, local, discord, lastfm, media (MPRIS), radio, listentogether, cipher, potoken, session (login), settings. No Tauri. Talks to the outside through three traits (4.2) | moved from `src-tauri/src` |
 | `crates/protocol` | request/response/event types, `serde` only, shared by daemon, CLI, tests | new |
-| `crates/ryotunesd` | binary: socket server, single-instance lock, systemd-friendly lifecycle, GTK thread hosting the hidden WebKitGTK views, tray | new; absorbs `tray.rs`, `webview.rs`, the login part of `session.rs` |
-| `crates/ryotunes-cli` | `ryotunes-cli <method> [json]` and `ryotunes-cli events`; the shell's and scripts' entry point | new |
-| `client/` | the QML client run by Quickshell: `qs -c ryotunes` (shipped as `/usr/share/ryotunes/client`), plus `client/mini/` for the mini player window | new, replaces `ui/` |
+| `crates/ryotunesd` | binary `ryotune-omni-daemon`: socket server, single-instance lock, systemd-friendly lifecycle, GTK thread hosting hidden WebKitGTK views, tray | inherited implementation with Omni-specific runtime identity |
+| `crates/ryotunes-cli` | `ryotune-omni-cli <method> [json]` and `events`; local skin tooling | inherited implementation with Omni-specific executable |
+| `client/` | QML client run by Quickshell (shipped as `/usr/share/ryotune-omni/client`), plus `client/mini/` | inherited UI with isolated Omni config and runtime paths |
 | `src-tauri/` | deleted at the end of phase 4 | removed |
 
 ## Daemon
 
-`ryotunesd` hosts `crates/core` behind a unix socket so the interface can be killed without stopping playback. It is a systemd user service, socket-activated by `ryotunesd.socket` on the first client connection, and it exits on a bounded idle (nothing playing and no subscriber) after five minutes.
+`ryotune-omni-daemon` hosts `crates/core` behind a Unix socket so the interface can be closed without stopping playback. It is a systemd user service, socket-activated by `ryotune-omni-daemon.socket` on the first client connection, and exits on a bounded idle after the configured grace period.
 
-- Socket: `$XDG_RUNTIME_DIR/ryotunes/ryotunesd.sock`, in a `0700` directory, created under `umask 077`. A single instance is enforced with an `flock` on `ryotunesd.sock.lock`; a second launch connects to the incumbent, asks it to `show`, and exits 0.
+- Socket: `$XDG_RUNTIME_DIR/ryotune-omni/daemon.sock`, in a `0700` directory, created under `umask 077`. A single instance is enforced with an `flock` on `daemon.sock.lock`; a second launch connects to the incumbent, asks it to `show`, and exits 0. This path is isolated from upstream Ryotunes.
 - Framing: newline-delimited JSON, one object per line, both directions. Request `{"id":12,"method":"play","params":{"videoId":"…"}}`; response `{"id":12,"result":…}` or `{"id":12,"error":{"code":"…","message":"…"}}`; event `{"event":"position","data":{"position":12.3}}`.
 - Methods: every `#[tauri::command]` name and JSON shape, plus the control methods `hello` (returns `{"protocol":1,"daemon":"2.4.1"}`), `subscribe` (opts into events and replies with the current `playback`/`queue`/`settings`/`auth` snapshot), `show` (raise a subscribed client's window, or launch the client when none is listening), `quit` (stop playback, unregister MPRIS, exit), and `sign_in` (open the Google login window).
 - `ryotunes-cli <method> [json]` runs one method and prints its `result`; `ryotunes-cli events [name…]` subscribes and prints one event per line until interrupted.
 
-The Tauri app and the daemon share the same data directory (`$XDG_DATA_HOME/dev.ryoku.ryotunes`); run one at a time until the cutover.
+The Omni Tauri app and daemon share `$XDG_DATA_HOME/dev.excentry.ryotune-omni`; the original Ryotunes app uses a different profile. No data migration occurs.
 
 ### Native downloads
 

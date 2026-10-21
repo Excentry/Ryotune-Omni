@@ -30,10 +30,15 @@ The application version lives in one source, the Cargo workspace
 `scripts/sync-version.sh` into `Cargo.lock`, `src-tauri/tauri.conf.json`,
 `ui/package.json`, `client/version`, `packaging/arch/PKGBUILD` (hyphens
 stripped, since `pkgver` forbids them) and
-`packaging/linux/dev.ryoku.ryotunes.metainfo.xml`. `scripts/release-check.sh`
+`packaging/linux/dev.excentry.ryotune-omni.metainfo.xml`. `scripts/release-check.sh`
 and `scripts/check-release-invariants.py` fail any tree where these disagree.
 A release tag must equal the workspace version of the tagged commit; the
 release workflow verifies this.
+
+Identity checks enforce Tauri/AppStream ID `dev.excentry.ryotune-omni` and
+Arch package `ryotune-omni`. Package metadata has no `epoch`, `replaces`, or
+`conflicts` relation with upstream `ryotunes`; release assets use the Omni
+package name. Identity migration does not create a release or change version.
 
 To prepare a version bump:
 
