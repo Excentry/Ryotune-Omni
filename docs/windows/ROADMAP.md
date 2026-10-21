@@ -159,15 +159,17 @@ No cambiar estructura arbitraria de páginas como requisito de MVP. Mantener sep
 
 Las fases son puertas de avance, no fechas. El equipo estima duración después de las pruebas de viabilidad. W0 evita riesgos de publicación; W1 y W2 permiten trabajo paralelo limitado.
 
+**Estado de tareas:** ☑ Hecha (criterio/evidencia registrados); ◐ Parcial; ⊘ Bloqueada; ☐ Sin verificar. `Sin verificar` significa que el roadmap no registra evidencia suficiente para cerrarla; no afirma que nadie haya trabajado en ella. Actualizar el estado al registrar evidencia.
+
 ### Fase 0 — Proteger integración y confirmar alcance
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W00 | @IsaVonxz-type | Acordar Alpha/Beta, matriz de paridad y preservar identidad Ryotunes — **decisiones cerradas** | El alcance de Alpha y la paridad por fases quedan acordados; baseline visual sigue en W26 |
-| W01 | @Excentry | Revisar la publicación automática de `.github/workflows/release.yml` | Un push/merge normal no publica accidentalmente paquete o tag; CI de PR separada de release |
-| W02 | Ambos | Confirmar x64, host Svelte/Tauri, actualización y aislamiento de datos — **decisiones cerradas** | Windows 11 x64, Tauri integrado, datos por usuario, sin updater ni publicación pública en Alpha; gates restantes asignados |
-| W03 | @Excentry | Proponer branch/CI/deployment rules seguras para equipo de dos | Permisos mínimos y procedimiento de release documentados; cambios de Settings solo con autorización del dueño |
-| W04 | @IsaVonxz-type | Matriz por función y host — **baseline aprobada; runtime Linux pendiente** | Contratos, superficies QML/Svelte/Tauri/daemon, pruebas y prioridad visibles; validar diferencias dudosas antes de congelar |
+| ☑ W00 | @IsaVonxz-type | Acordar Alpha/Beta, matriz de paridad y preservar identidad Ryotunes — **decisiones cerradas** | El alcance de Alpha y la paridad por fases quedan acordados; baseline visual sigue en W26 |
+| ☑ W01 | @Excentry | Revisar publicación automática de `.github/workflows/release.yml` — **revisión estática hecha** | Push/merge normal no publica; CI de PR separada. Solo tags `v*` activan release; sin targets, tag falla antes de publicar y trigger manual valida sin publicar. Ver workflow y `docs/RELEASING.md`. |
+| ☑ W02 | Ambos | Confirmar x64, host Svelte/Tauri, actualización y aislamiento de datos — **decisiones cerradas** | Windows 11 x64, Tauri integrado, datos por usuario, sin updater ni publicación pública en Alpha; gates restantes asignados |
+| ☑ W03 | @Excentry | Proponer branch/CI/deployment rules seguras para equipo de dos — **propuesta documentada** | [Procedimiento y reglas recomendadas](../RELEASING.md#branch-and-tag-protection), mínimo privilegio y revisión por el otro maintainer. No afirma que GitHub Settings ya estén aplicadas; verificarlas solo con autorización del dueño |
+| ⊘ W04 | @IsaVonxz-type | Matriz por función y host — **baseline estática aprobada; cierre bloqueado por runtime Linux** | Contratos, superficies QML/Svelte/Tauri/daemon, pruebas y prioridad visibles; validar diferencias dudosas antes de congelar |
 
 #### W04 — Matriz de paridad funcional (baseline Linux)
 
@@ -202,7 +204,7 @@ La matriz toma como fuentes de verdad `ui/src/lib/api.ts`, `src-tauri/src/comman
 - **P0 transversal — Fase 0–3:** contratos UI-host, eventos, almacenamiento por usuario, seguridad y no-regresión Linux (`W00`–`W35`); habilitan cada bloque y no son tareas pospuestas a paridad.
 - **P0 para release — Fases 7–8:** accesibilidad, rendimiento, robustez, actualización, empaquetado, licencias y recuperación (`W70`–`W86`).
 
-**Cierre de W04:** cada función visible en Linux queda asociada a contrato (comando/evento), superficies UI, adaptación Windows, prioridad/fase y prueba. Confirmar inventario mecánicamente contra el registro de comandos de `src-tauri/build.rs` y eventos de `ui/src/lib/api.ts`; registrar excepciones solo como diferencias de integración del sistema, no como recortes funcionales. Esta matriz es baseline de trabajo y debe revisarse contra el runtime Linux actual antes de congelar paridad.
+**Cierre de W04:** cada función visible en Linux queda asociada a contrato (comando/evento), superficies UI, adaptación Windows, prioridad/fase y prueba. El cotejo estático de W14 cubre registro de comandos, API y eventos, pero W04 sigue parcial hasta confirmar en runtime Linux `subscribe` desde ArtistPage y el resultado `add_to_playlist` para Spotify. Registrar excepciones solo como diferencias de integración del sistema, no como recortes funcionales. No congelar paridad ni marcar W04 hecha antes de registrar ambos resultados de runtime.
 
 #### Auditoría estática de contratos y superficies (W04)
 
@@ -238,20 +240,22 @@ La matriz toma como fuentes de verdad `ui/src/lib/api.ts`, `src-tauri/src/comman
 5. La lista de comandos/eventos es contrato estático; no demuestra que el target Windows compile ni que los flujos funcionen. El estado de todo lo específico de Windows sigue siendo **pendiente de build/runtime** hasta W13, W15, W20–W25 y W45.
 6. Qt/QML como tecnología puede ejecutarse en Windows con un host Qt propio, pero Quickshell no es un host Windows viable para este cliente. Crear un host Qt nuevo duplicaría el host existente sin aportar ventaja clara; queda fuera de alcance.
 
-**Estado W04:** el alcance y la matriz estática quedan aprobados como baseline de planificación. W14 completó el cotejo mecánico y el inventario estático; sigue pendiente confirmar en runtime Linux el caso `subscribe` y resolver la discrepancia del resultado Spotify de `add_to_playlist`. No implica paridad Windows.
+**Estado W04:** matriz estática completada como baseline de planificación; W14 completó cotejo e inventario de métodos/eventos. En Ubuntu 26.04 WSL se instalaron temporalmente Rust/Cargo 1.93.1 y dependencias GTK/WebKitGTK/libmpv; `cargo build --locked -p ryotunesd -p ryotunes-cli` pasó. Se instaló Quickshell 0.3.2 desde `ppa:avengemedia/danklinux`, pero no se pudo arrancar `client/shell.qml`: checkout carece de `Ryoku.Ui.Singletons`. Al terminar la prueba se retiraron Quickshell, PPA, toolchain, dependencias de desarrollo y 427 paquetes automáticos huérfanos; no se eliminó Ubuntu WSL ni el cache Cargo externo `/home/isaac/.cache/ryotune-omni-target`. Prueba socket daemon aislado: `subscribe({channelId,subscribed:true})` devolvió snapshot genérico, sin confirmar cambio remoto. `cargo test --locked -p ryotunesd echo_subscribe_and_event_fan_out -- --nocapture` pasó (1 test). Spotify `add_to_playlist` no llegó a la rama de escritura: sin sesión, daemon devolvió `spotify_signed_out`. No se comprobaron cambios remotos YouTube ni escritura Spotify exitosa. Inspección estática de `crates/ryotunesd/src/methods.rs` muestra que `subscribe` ignora `channelId/subscribed` y que la rama Spotify de `add_to_playlist` termina en `null`; son discrepancias por confirmar en runtime, no correcciones.
+
+**Siguiente responsable — Brayan, desde su distro Ryoku:** usar checkout y cuentas de prueba propias, sin compartir credenciales ni cookies; registrar commit, distro y resultados sin datos sensibles. (1) Ejecutar daemon y `qs -p client` con el módulo Ryoku disponible; en ArtistPage probar suscribir y desuscribir un artista y confirmar cada cambio en la cuenta YouTube, no solo el snapshot local. (2) Iniciar Spotify desde Settings, completar OAuth en navegador y comprobar estado autenticado; añadir un track de prueba a playlist de prueba, confirmar que aparece remotamente y registrar valor/error devuelto por `add_to_playlist`. (3) Adjuntar evidencia reproducible (pasos, resultado y logs redactados) y dejar W04 abierta hasta comprobar ambos flujos. Si se confirman las discrepancias del dispatch `subscribe` o del resultado Spotify, pasar reproducción mínima y evidencia a @Excentry para corrección backend; no modificar esos crates como parte de esta validación. El resultado de WSL no implica paridad Windows.
 
 **Salida de fase:** alcance y ruta de integración aprobados. No empezar refactor amplio antes de separar publicación de CI.
 
 ### Fase 1 — Build reproducible y auditoría por target
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W10 | @Excentry | Resolver grafo Cargo Windows por target/features | Paquetes activos, build dependencies, APIs Unix y DLL requeridas documentadas |
-| W11 | @Excentry | Definir entorno MSVC x64 en Windows 11 | Versiones Rust/Node/pnpm/VS C++/SDK registradas; pasos reproducibles desde máquina limpia |
-| W12 | @Excentry | Auditar libmpv y recurso existente en `src-tauri/tauri.windows.conf.json` | DLL, import library, ABI, dependencias runtime, codecs, filtros, licencia, origen y hash definidos |
-| W13 | @IsaVonxz-type | Ejecutar baseline Svelte/Tauri — **hecha en checkout local** | `pnpm check`, build y nueve checks puros pasaron; toolchain/resultados registrados abajo. No equivale a validar Tauri en runtime Windows |
-| W14 | @IsaVonxz-type | Comparar comandos/eventos Tauri con daemon — **inventario estático completo** | Matriz por método y evento en [el apéndice W14](CONTRACT-MATRIX.md); runtime/contract tests quedan como gates W21/W34 |
-| W15 | @Excentry | Añadir CI Windows no-publicadora | Compila solo paquetes seleccionados; permisos de workflow mínimos; no firma ni publica |
+| ◐ W10 | @Excentry | Resolver grafo Cargo Windows por target/features — **inventario estático hecho; check MSVC bloqueado por recurso ausente** | Paquetes activos, build dependencies, APIs Unix y DLL requeridas documentadas; [inventario W10](W10-CARGO-WINDOWS-INVENTORY.md) registra el intento de build y el bloqueo |
+| ☐ W11 | @Excentry | Definir entorno MSVC x64 en Windows 11 | Versiones Rust/Node/pnpm/VS C++/SDK registradas; pasos reproducibles desde máquina limpia |
+| ☐ W12 | @Excentry | Auditar libmpv y recurso existente en `src-tauri/tauri.windows.conf.json` | DLL, import library, ABI, dependencias runtime, codecs, filtros, licencia, origen y hash definidos |
+| ☑ W13 | @IsaVonxz-type | Ejecutar baseline Svelte/Tauri — **hecha en checkout local** | `pnpm check`, build y nueve checks puros pasaron; toolchain/resultados registrados abajo. No equivale a validar Tauri en runtime Windows |
+| ☑ W14 | @IsaVonxz-type | Comparar comandos/eventos Tauri con daemon — **inventario estático completo** | Matriz por método y evento en [el apéndice W14](CONTRACT-MATRIX.md); runtime/contract tests quedan como gates W21/W34 |
+| ☐ W15 | @Excentry | Añadir CI Windows no-publicadora | Compila solo paquetes seleccionados; permisos de workflow mínimos; no firma ni publica |
 
 #### W13 — Baseline local ejecutada
 
@@ -293,15 +297,15 @@ Matriz exhaustiva de comandos, parámetros, resultados, errores y eventos (paylo
 
 ### Fase 2 — Prototipos de viabilidad
 
-| ID | Responsable | Tarea | Mínimo de aceptación |
+| Estado / ID | Responsable | Tarea | Mínimo de aceptación |
 | --- | --- | --- | --- |
-| W20 | @Excentry | Prueba libmpv Windows | Archivo local reproduce; pause/seek/volume/EOF/cierre correctos; se inspecciona carga y redistribución de DLL |
-| W21 | @IsaVonxz-type | Prueba Tauri/WebView2 y configuración por plataforma — **parcial/bloqueada** | Build local solo pasó con wiring/artefactos nativos no compartidos; falta build reproducible, startup limpio, WebView2/SPA, IPC e instalador. El smoke encontró panic de media-controls por HWND ausente |
-| W22 | @IsaVonxz-type | Probar bridge JavaScript y login YouTube | Harness correcto; timeout, cancelación, cookies esperadas y fallo recuperable demostrados |
-| W23 | @Excentry | Comparar transporte Spotify | Named pipe vs sink/alternativa; latencia, pausa, seek, backpressure, EOF, cancelación y handles medidos |
-| W24 | Ambos | Validar el host integrado Tauri acordado | Prueba demuestra continuidad al ocultar/cerrar ventana, Quit limpio, single-instance y dueño único de audio/datos; reabrir arquitectura solo si falla |
-| W25 | @Excentry | Construir prototipo ejecutable | Ejecuta fuera del shell de desarrollo, con dependencias nativas descubiertas y logs útiles |
-| W26 | @IsaVonxz-type | Elaborar baseline visual Ryotunes | Capturas/medidas de pantalla, flujo de navegación y tokens visuales de referencia, sin rediseño accidental |
+| ☐ W20 | @Excentry | Prueba libmpv Windows | Archivo local reproduce; pause/seek/volume/EOF/cierre correctos; se inspecciona carga y redistribución de DLL |
+| ⊘ W21 | @IsaVonxz-type | Prueba Tauri/WebView2 y configuración por plataforma — **parcial/bloqueada** | Build local solo pasó con wiring/artefactos nativos no compartidos; falta build reproducible, startup limpio, WebView2/SPA, IPC e instalador. El smoke encontró panic de media-controls por HWND ausente |
+| ☐ W22 | @IsaVonxz-type | Probar bridge JavaScript y login YouTube | Harness correcto; timeout, cancelación, cookies esperadas y fallo recuperable demostrados |
+| ☐ W23 | @Excentry | Comparar transporte Spotify | Named pipe vs sink/alternativa; latencia, pausa, seek, backpressure, EOF, cancelación y handles medidos |
+| ☐ W24 | Ambos | Validar el host integrado Tauri acordado | Prueba demuestra continuidad al ocultar/cerrar ventana, Quit limpio, single-instance y dueño único de audio/datos; reabrir arquitectura solo si falla |
+| ☐ W25 | @Excentry | Construir prototipo ejecutable | Ejecuta fuera del shell de desarrollo, con dependencias nativas descubiertas y logs útiles |
+| ◐ W26 | @IsaVonxz-type | Elaborar baseline visual Ryotunes — **inventario estático inicial** | [Baseline y diferencias por validar](W26-VISUAL-BASELINE.md); falta comparación con capturas/runtimes equivalentes para cerrar paridad, sin rediseño accidental |
 
 **Salida:** reproducción local en runtime, WebView funcional y decisión explícita para Spotify. Si Spotify se aplaza, publicarlo como limitación aceptada; no marcarlo como portado.
 
@@ -314,27 +318,27 @@ Matriz exhaustiva de comandos, parámetros, resultados, errores y eventos (paylo
 
 ### Fase 3 — Fronteras portables y contratos compartidos
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W30 | @Excentry | Extraer servicios de negocio necesarios desde daemon | Core/servicio testeable sin GTK ni APIs Unix; Linux conserva comportamiento |
-| W31 | @Excentry | Definir adaptadores de rutas, credenciales, media y procesos | Interfaz acotada con tests de éxito/error/cancelación; sin `cfg` disperso en lógica de negocio |
-| W32 | @IsaVonxz-type | Adaptar host y comandos Tauri a contratos publicados | Cada comando está registrado, capability acotada y conectada a servicio real |
-| W33 | @Excentry | Adaptar almacenamiento y directorios Windows | Datos/cache en directorio por usuario; ACL y migración comprobadas; fallos reportados |
-| W34 | @IsaVonxz-type | Contratos UI-host y fixtures | Tests de errores, cargas y eventos; fixtures no se etiquetan como backend integrado |
-| W35 | Ambos | Revisar compatibilidad Linux de extracciones | Suite afectada corre; owner registra checks y runtime no verificado |
+| ☐ W30 | @Excentry | Extraer servicios de negocio necesarios desde daemon | Core/servicio testeable sin GTK ni APIs Unix; Linux conserva comportamiento |
+| ☐ W31 | @Excentry | Definir adaptadores de rutas, credenciales, media y procesos | Interfaz acotada con tests de éxito/error/cancelación; sin `cfg` disperso en lógica de negocio |
+| ☐ W32 | @IsaVonxz-type | Adaptar host y comandos Tauri a contratos publicados | Cada comando está registrado, capability acotada y conectada a servicio real |
+| ☐ W33 | @Excentry | Adaptar almacenamiento y directorios Windows | Datos/cache en directorio por usuario; ACL y migración comprobadas; fallos reportados |
+| ☐ W34 | @IsaVonxz-type | Contratos UI-host y fixtures | Tests de errores, cargas y eventos; fixtures no se etiquetan como backend integrado |
+| ☐ W35 | Ambos | Revisar compatibilidad Linux de extracciones | Suite afectada corre; owner registra checks y runtime no verificado |
 
 **Regla:** primero merge de interfaz y pruebas del core; después PR del consumidor Tauri.
 
 ### Fase 4 — Corte vertical Alpha
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W40 | @Excentry | Playback, cola y recuperación | Play/pause/seek/volume/next/error; no quedan procesos/handles después de Quit |
-| W41 | @IsaVonxz-type | Recorrido YouTube en interfaz | Login, browse/search, reproducción, errores y restauración visual probados |
-| W42 | @Excentry | Biblioteca local Windows | Unicode, espacios, directorios borrados y metadata; reescaneo no bloquea UI |
-| W43 | @IsaVonxz-type | Ventanas, tray y segunda instancia | Cerrar/restaurar/relanzar evita segunda sesión de audio y conserva estados esperados |
-| W44 | @Excentry | Diagnóstico/telemetría local | Logs rotados y exportables; sin credenciales, cookies ni URL firmadas |
-| W45 | Ambos | Prueba Alpha en Windows 11 limpio | Instalación y recorrido end-to-end, commit/OS/toolchain y resultados registrados |
+| ☐ W40 | @Excentry | Playback, cola y recuperación | Play/pause/seek/volume/next/error; no quedan procesos/handles después de Quit |
+| ☐ W41 | @IsaVonxz-type | Recorrido YouTube en interfaz | Login, browse/search, reproducción, errores y restauración visual probados |
+| ☐ W42 | @Excentry | Biblioteca local Windows | Unicode, espacios, directorios borrados y metadata; reescaneo no bloquea UI |
+| ☐ W43 | @IsaVonxz-type | Ventanas, tray y segunda instancia | Cerrar/restaurar/relanzar evita segunda sesión de audio y conserva estados esperados |
+| ☐ W44 | @Excentry | Diagnóstico/telemetría local | Logs rotados y exportables; sin credenciales, cookies ni URL firmadas |
+| ☐ W45 | Ambos | Prueba Alpha en Windows 11 limpio | Instalación y recorrido end-to-end, commit/OS/toolchain y resultados registrados |
 
 **Salida:** Alpha instalada sin herramientas del desarrollador; reproducción local y YouTube funcional; ventana puede cerrarse y reabrirse sin perder trabajo activo.
 
@@ -342,51 +346,51 @@ Matriz exhaustiva de comandos, parámetros, resultados, errores y eventos (paylo
 
 Cada bloque se implementa de extremo a extremo y se revisa antes de iniciar otro. @Excentry domina backend; @IsaVonxz-type domina host/UI; revisión cruzada obligatoria.
 
-| Orden | Bloque | @Excentry | @IsaVonxz-type | Criterio mínimo de cierre |
-| ---: | --- | --- | --- | --- |
-| 1 | Proveedores | Cliente, sesión, audio y recuperación | Flujos de login, selector, estados y errores | Por proveedor comprometido: login/logout, catálogo, reproducción y fallo recuperable |
-| 2 | Spotify | Transporte elegido, seek, pausa y EOF | UI de estado, controles y errores | Pruebas de audio y ciclo de vida pasan; Premium/restricciones documentadas |
-| 3 | Descargas | Procesos Windows, cancelación de árbol, queue y publicación | Settings, progreso, cancelar/reintentar, empty/error states | Cerrar UI conserva jobs; cancelar no deja procesos; reinicio recupera el estado |
-| 4 | Controles Windows | HWND, SMTC y ciclo de vida del owner | Tray, taskbar, mini-player y metadatos | Controles funcionan tras ocultar/restaurar; no se confunde taskbar con SMTC |
-| 5 | Audio, letras e integraciones | Filtros, Last.fm/Discord/Listen Together comprometidos | Ajustes, superficies, seek y opt-in | Sin pérdida de estado; integración opcional falla aislada |
-| 6 | Personalización UI | Contrato/formato de tokens si requiere backend | Skins, temas, presets y preferencias | Skin válida aplica/revierte; valores por defecto fieles a Ryotunes |
+| Estado / Orden | Bloque | @Excentry | @IsaVonxz-type | Criterio mínimo de cierre |
+| --- | --- | --- | --- | --- |
+| ☐ 1 | Proveedores | Cliente, sesión, audio y recuperación | Flujos de login, selector, estados y errores | Por proveedor comprometido: login/logout, catálogo, reproducción y fallo recuperable |
+| ☐ 2 | Spotify | Transporte elegido, seek, pausa y EOF | UI de estado, controles y errores | Pruebas de audio y ciclo de vida pasan; Premium/restricciones documentadas |
+| ☐ 3 | Descargas | Procesos Windows, cancelación de árbol, queue y publicación | Settings, progreso, cancelar/reintentar, empty/error states | Cerrar UI conserva jobs; cancelar no deja procesos; reinicio recupera el estado |
+| ☐ 4 | Controles Windows | HWND, SMTC y ciclo de vida del owner | Tray, taskbar, mini-player y metadatos | Controles funcionan tras ocultar/restaurar; no se confunde taskbar con SMTC |
+| ☐ 5 | Audio, letras e integraciones | Filtros, Last.fm/Discord/Listen Together comprometidos | Ajustes, superficies, seek y opt-in | Sin pérdida de estado; integración opcional falla aislada |
+| ☐ 6 | Personalización UI | Contrato/formato de tokens si requiere backend | Skins, temas, presets y preferencias | Skin válida aplica/revierte; valores por defecto fieles a Ryotunes |
 
 **Dependencia:** cada función de la matriz debe ser `Implementada`, `Aplazada` o `No soportada`, con prueba y evidencia en el registro de compatibilidad.
 
 ### Fase 6 — Diseño fiel y personalización segura
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W60 | @IsaVonxz-type | Portar tokens y tema predeterminado Ryotunes | Jerarquía, artwork, tipografía y reproductor reconocibles respecto al baseline W26 |
-| W61 | @IsaVonxz-type | Reutilizar/adaptar formato de skins | Colores y tipografías configurables; skin inválida revierte a default y no rompe startup |
-| W62 | @IsaVonxz-type | Añadir densidad compacta/cómoda y presets UI | Estados persistentes, navegación accesible, compatibilidad con ventana mínima y DPI |
-| W63 | Ambos | Definir estabilidad del contrato de personalización | Tokens separados de layout y estado; migración/versionado del formato documentados |
-| W64 | @IsaVonxz-type | Evaluar editor libre de layout | ADR con casos de uso, accesibilidad, costo de pruebas y criterio de aplazamiento; no implementarlo sin aprobación |
+| ☐ W60 | @IsaVonxz-type | Portar tokens y tema predeterminado Ryotunes | Jerarquía, artwork, tipografía y reproductor reconocibles respecto al baseline W26 |
+| ☐ W61 | @IsaVonxz-type | Reutilizar/adaptar formato de skins | Colores y tipografías configurables; skin inválida revierte a default y no rompe startup |
+| ☐ W62 | @IsaVonxz-type | Añadir densidad compacta/cómoda y presets UI | Estados persistentes, navegación accesible, compatibilidad con ventana mínima y DPI |
+| ☐ W63 | Ambos | Definir estabilidad del contrato de personalización | Tokens separados de layout y estado; migración/versionado del formato documentados |
+| ☐ W64 | @IsaVonxz-type | Evaluar editor libre de layout | ADR con casos de uso, accesibilidad, costo de pruebas y criterio de aplazamiento; no implementarlo sin aprobación |
 
 ### Fase 7 — Robustez, seguridad y rendimiento
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W70 | @Excentry | Resistencia de servicios/procesos | Timeouts/cancelación; cargas acotadas; no quedan hijos en escenarios de fallo |
-| W71 | @IsaVonxz-type | UI WebView2 en carga | p95 de búsqueda/controles, scroll, listas y artwork documentados en 1k/10k/50k |
-| W72 | @Excentry | Test prolongado | 8 h en hardware acordado; memoria/handles/procesos sin crecimiento sostenido inexplicado |
-| W73 | @IsaVonxz-type | Accesibilidad y ventanas Windows | DPI 100–200 %, monitores, teclado, Narrator, foco y restauración comprobados |
-| W74 | @Excentry | Revisión seguridad/dependencias nativas | DLL search order, orígenes de binarios, ACL, secretos y tools revisados; críticos resueltos |
-| W75 | Ambos | Actualización fallida y recuperación de datos | Reintento/rollback probado con estado anterior; pérdida de datos no aceptada explicada |
+| ☐ W70 | @Excentry | Resistencia de servicios/procesos | Timeouts/cancelación; cargas acotadas; no quedan hijos en escenarios de fallo |
+| ☐ W71 | @IsaVonxz-type | UI WebView2 en carga | p95 de búsqueda/controles, scroll, listas y artwork documentados en 1k/10k/50k |
+| ☐ W72 | @Excentry | Test prolongado | 8 h en hardware acordado; memoria/handles/procesos sin crecimiento sostenido inexplicado |
+| ☐ W73 | @IsaVonxz-type | Accesibilidad y ventanas Windows | DPI 100–200 %, monitores, teclado, Narrator, foco y restauración comprobados |
+| ☐ W74 | @Excentry | Revisión seguridad/dependencias nativas | DLL search order, orígenes de binarios, ACL, secretos y tools revisados; críticos resueltos |
+| ☐ W75 | Ambos | Actualización fallida y recuperación de datos | Reintento/rollback probado con estado anterior; pérdida de datos no aceptada explicada |
 
 **Presupuestos de rendimiento pendientes:** controles locales p95 <100 ms; búsqueda p95 <100 ms y sin bloqueo perceptible del hilo UI; recursos absolutos después de baseline. Acordar hardware y método antes de medir W71; no bloquea el inicio de W10–W12.
 
 ### Fase 8 — Empaquetado, operación y release
 
-| ID | Responsable | Tarea | Aceptación |
+| Estado / ID | Responsable | Tarea | Aceptación |
 | --- | --- | --- | --- |
-| W80 | @Excentry | Verificar `tauri.windows.conf.json` efectivo | NSIS/MSI no asumen compatibilidad; arrays de config merge revisados; recurso libmpv resuelto en instalador |
-| W81 | @Excentry | Seleccionar formato inicial de paquete | Propuesta: NSIS por usuario; MSI solo si requisito justifica duplicar QA |
-| W82 | @Excentry | Pipeline candidato Windows | CI produce artefacto no publicador, commit/version/hash y logs; permisos mínimos |
-| W83 | @IsaVonxz-type | Ensayo instalar/actualizar/desinstalar | Windows 11 limpio y upgrade desde versión previa; preferencias/cache se conservan según política |
-| W84 | @Excentry | Firma, actualizador y procedencia | Identidad del fork, endpoint, Authenticode y verificación del paquete definidos; upstream no usado accidentalmente |
-| W85 | @Excentry | SBOM y revisión de licencias | DLL, codecs, FFmpeg, yt-dlp, fuentes y skins inventariados; obligaciones atendidas antes de publicar |
-| W86 | Ambos | Aprobación del release candidate | Artefacto exacto instalado y verificado por ambos; limitaciones y rollback documentados |
+| ☐ W80 | @Excentry | Verificar `tauri.windows.conf.json` efectivo | NSIS/MSI no asumen compatibilidad; arrays de config merge revisados; recurso libmpv resuelto en instalador |
+| ☐ W81 | @Excentry | Seleccionar formato inicial de paquete | Propuesta: NSIS por usuario; MSI solo si requisito justifica duplicar QA |
+| ☐ W82 | @Excentry | Pipeline candidato Windows | CI produce artefacto no publicador, commit/version/hash y logs; permisos mínimos |
+| ☐ W83 | @IsaVonxz-type | Ensayo instalar/actualizar/desinstalar | Windows 11 limpio y upgrade desde versión previa; preferencias/cache se conservan según política |
+| ☐ W84 | @Excentry | Firma, actualizador y procedencia | Identidad del fork, endpoint, Authenticode y verificación del paquete definidos; upstream no usado accidentalmente |
+| ☐ W85 | @Excentry | SBOM y revisión de licencias | DLL, codecs, FFmpeg, yt-dlp, fuentes y skins inventariados; obligaciones atendidas antes de publicar |
+| ☐ W86 | Ambos | Aprobación del release candidate | Artefacto exacto instalado y verificado por ambos; limitaciones y rollback documentados |
 
 **Puerta de release:** ningún push rutinario debe crear versión/tag/release pública. Separar workflow de CI y workflow de publicación; publicar solo con aprobación explícita y permisos mínimos. Firma ausente significa build interno/no estable, no “firmado después”.
 
@@ -437,7 +441,7 @@ Medir el árbol completo: aplicación, WebView2 renderer/GPU, mpv y downloader. 
 
 **@Excentry:** puede iniciar W01 y W10–W12; W20 continúa siendo su prueba de reproducción/controles. La selección/receta de libmpv no está declarada completada por este roadmap. Primero inspeccionar workflows/estado y fijar entorno/grafo; no cambiar lockfiles ni empaquetado sin evidencia.
 
-**@IsaVonxz-type:** decisiones W00/W02 cerradas y baseline W04 publicada; continúan W21/W26, la verificación runtime Linux de diferencias W14 y el diseño de la UI. No sobrescribir cambios documentales existentes.
+**@IsaVonxz-type:** decisiones W00/W02 cerradas y baseline estática W04 publicada; W04 espera validación runtime Linux de sus dos discrepancias, además de W21/W26 y el diseño de UI. No sobrescribir cambios documentales existentes.
 
 **Ambos:** x64, host integrado, alcance Alpha y política de no publicación externa en Alpha ya acordados. Identidad/updater y requisitos de release siguen siendo gate antes de distribución externa.
 
