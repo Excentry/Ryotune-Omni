@@ -29,6 +29,8 @@ export SOURCE_DATE_EPOCH=1792591200
 export PYTHONNOUSERSITE=1
 unset PYTHONPATH
 test "$($CC -dumpmachine)" = x86_64-w64-mingw32
+cxx_runtime="$(realpath "$("$CXX" -print-file-name=libstdc++.a)")"
+test -f "$cxx_runtime"
 {
     "$CC" --version
     "$CXX" --version
@@ -36,7 +38,16 @@ test "$($CC -dumpmachine)" = x86_64-w64-mingw32
     ninja --version
     python3 --version
     pkg-config --version
+    printf 'Static C++ runtime: %s\n' "$cxx_runtime"
+    sha256sum "$cxx_runtime"
 } > "$output/toolchain.txt"
+mkdir -p "$builds/runtime"
+printf '#include <vector>\nextern "C" int owned_runtime_probe(int size) { std::vector<int> values(size); return values.at(size); }\n' > "$builds/runtime/probe.cpp"
+printf 'extern int owned_runtime_probe(int);\nint main(void) { return owned_runtime_probe(1); }\n' > "$builds/runtime/probe.c"
+"$CXX" -c "$builds/runtime/probe.cpp" -o "$builds/runtime/probe.o"
+"$CC" "$builds/runtime/probe.c" "$builds/runtime/probe.o" \
+    -Wl,--start-group "$cxx_runtime" -Wl,--end-group -static-libgcc \
+    -o "$builds/runtime/probe.exe"
 cat > "$output/cross.ini" <<EOF
 [binaries]
 c = '$CC'
@@ -101,7 +112,8 @@ printf '#include <libxml2/libxml/xmlversion.h>\nint main(void) { xmlCheckVersion
 )
 meson_build mpv -Dlibmpv=true -Dcplayer=false \
     -Dgpl=true -Dbuild-date=false -Dlua=disabled -Dgl=disabled \
-    -Dwin32-threads=enabled -Dwasapi=enabled -Drubberband=enabled
+    -Dwin32-threads=enabled -Dwasapi=enabled -Drubberband=enabled \
+    "-Dc_link_args=$cxx_runtime"
 grep -Eq '^#define HAVE_WASAPI 1$' "$builds/mpv/config.h"
 grep -Eq '^#define HAVE_RUBBERBAND 1$' "$builds/mpv/config.h"
 grep -Eq '^#define CONFIG_SCHANNEL 1$' "$builds/ffmpeg/config.h"

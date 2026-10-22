@@ -32,6 +32,8 @@ The second run passed output ownership and compiled/installed all seven prerequi
 
 The third run passed that link probe and compiled/installed FFmpeg. mpv setup then rejected the duplicate static/shared `default_library` arguments. The helper now selects a single shared-library option for mpv and a single static-library option for every prerequisite. Final libmpv linkage and Windows tests still need a passing run.
 
+The fourth run compiled mpv but failed at final DLL linkage: Meson selected the C compiler driver because enabled mpv sources are C, while static libplacebo/Rubber Band contain C++. `-static-libstdc++` alone did not add the C++ standard library to that C-driver link. The recipe now resolves the pinned cross-toolchain's actual `libstdc++.a`, checks that it exists, records its path/hash, and adds it explicitly to mpv's C link arguments. An early mixed C/C++ link probe exercises vector allocation, range-error and exception support before compiling the dependencies. The probe is cross-compiled, not executed; final DLL linkage and Windows loading still require a new passing CI run.
+
 ## Local source preparation on Windows
 
 From the repository root, with Python 3.12 or later:
