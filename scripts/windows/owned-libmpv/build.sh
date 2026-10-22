@@ -58,9 +58,13 @@ EOF
 meson_build() {
     local component="$1"
     shift
+    local library_type=static
+    if [[ "$component" == mpv ]]; then
+        library_type=shared
+    fi
     meson setup "$builds/$component" "$sources/$component" \
         --cross-file "$output/cross.ini" --prefix "$prefix" --libdir lib \
-        --buildtype release --default-library static --wrap-mode nofallback \
+        --buildtype release --default-library "$library_type" --wrap-mode nofallback \
         -Dauto_features=disabled "$@"
     meson compile -C "$builds/$component" -j "${BUILD_JOBS:-2}"
     meson install -C "$builds/$component" --no-rebuild
@@ -95,7 +99,7 @@ printf '#include <libxml2/libxml/xmlversion.h>\nint main(void) { xmlCheckVersion
     make -j "${BUILD_JOBS:-2}"
     make install
 )
-meson_build mpv -Ddefault_library=shared -Dlibmpv=true -Dcplayer=false \
+meson_build mpv -Dlibmpv=true -Dcplayer=false \
     -Dgpl=true -Dbuild-date=false -Dlua=disabled -Dgl=disabled \
     -Dwin32-threads=enabled -Dwasapi=enabled -Drubberband=enabled
 grep -Eq '^#define HAVE_WASAPI 1$' "$builds/mpv/config.h"

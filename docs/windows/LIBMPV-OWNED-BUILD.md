@@ -30,6 +30,8 @@ The first branch run preserved the sources successfully but failed before compil
 
 The second run passed output ownership and compiled/installed all seven prerequisites, then failed FFmpeg's libxml2 detection. The pinned FFmpeg probe includes `libxml2/libxml/xmlversion.h`, while libxml2's Meson pkg-config file supplies the nested `include/libxml2` path. Its static Windows exports also require `LIBXML_STATIC`, not exported by this pkg-config generation. The recipe now supplies the isolated prefix include path and static define to FFmpeg, and compiles a matching standalone link probe before configuring it. FFmpeg/Meson detection logs and the libxml2 pkg-config file are retained as CI evidence. Native completion and Windows tests remain pending.
 
+The third run passed that link probe and compiled/installed FFmpeg. mpv setup then rejected the duplicate static/shared `default_library` arguments. The helper now selects a single shared-library option for mpv and a single static-library option for every prerequisite. Final libmpv linkage and Windows tests still need a passing run.
+
 ## Local source preparation on Windows
 
 From the repository root, with Python 3.12 or later:
