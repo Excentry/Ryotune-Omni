@@ -48,8 +48,10 @@ jobs:
           set -euo pipefail
           image="$(python -c 'import json; print(json.load(open("scripts/windows/owned-libmpv/sources.lock.json"))["toolchain_image"])')"
           docker pull "$image"
-          mkdir -p "$RUNNER_TEMP/libmpv-output"
+          mkdir -p "$RUNNER_TEMP/libmpv-output/home"
           docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/output/home --env XDG_CACHE_HOME=/output/home/.cache \
             -v "$RUNNER_TEMP/libmpv-input:/input:ro" \
             -v "$RUNNER_TEMP/libmpv-output:/output" \
             "$image" bash /input/recipe/build.sh /input /output

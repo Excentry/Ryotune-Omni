@@ -26,6 +26,8 @@ Required functionality retained by design:
 
 Compiler/build tools come from the locked BtbN container digest, but preinstalled target libraries must not be consumed. Target dependencies are rebuilt into an isolated prefix; inherited include/library flags are cleared, pkg-config is restricted, FFmpeg autodetection is disabled, and Meson downloads/fallbacks are disabled. The container compilation step has networking disabled. Build metadata and PE imports require review for any accidental dependency or compiler runtime DLL.
 
+The first branch run preserved the sources successfully but failed before compilation because the image's default user could not write the host-owned output bind mount. The workflow now uses the runner's numeric UID/GID and an output-local `HOME`/cache directory; it does not grant root privileges or widen directory permissions. The build script checks log writability before redirecting output. This correction still requires a new CI run.
+
 ## Local source preparation on Windows
 
 From the repository root, with Python 3.12 or later:

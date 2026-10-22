@@ -3,6 +3,7 @@ set -euo pipefail
 input="$(realpath "$1")"
 output="$(realpath -m "$2")"
 mkdir -p "$output"
+touch "$output/build.log"
 exec > >(tee "$output/build.log") 2>&1
 python3 "$input/recipe/prepare.py" --offline --cache "$input/archives" --output "$output/prepared"
 sources="$output/prepared/sources"
