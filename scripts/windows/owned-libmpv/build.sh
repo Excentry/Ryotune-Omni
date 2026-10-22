@@ -77,6 +77,10 @@ meson_build rubberband -Dfft=builtin -Dresampler=builtin
 meson_build libxml2 -Dthreads=enabled -Dwinpath=enabled
 
 mkdir -p "$builds/ffmpeg"
+printf '#include <libxml2/libxml/xmlversion.h>\nint main(void) { xmlCheckVersion(LIBXML_VERSION); return 0; }\n' > "$builds/ffmpeg/check-libxml2.c"
+"$CC" -DLIBXML_STATIC -I"$prefix/include" $(pkg-config --static --cflags libxml-2.0) \
+    "$builds/ffmpeg/check-libxml2.c" $(pkg-config --static --libs libxml-2.0) \
+    -static-libgcc -o "$builds/ffmpeg/check-libxml2.exe"
 (
     cd "$builds/ffmpeg"
     "$sources/ffmpeg/configure" --prefix="$prefix" --target-os=mingw32 --arch=x86_64 \
@@ -85,7 +89,9 @@ mkdir -p "$builds/ffmpeg"
         --disable-autodetect --disable-programs --disable-doc --disable-debug \
         --enable-static --disable-shared --enable-gpl --enable-version3 \
         --enable-network --enable-schannel --enable-libxml2 --disable-iconv \
-        --extra-cflags="$CFLAGS" --extra-cxxflags="$CXXFLAGS" --extra-ldflags="$LDFLAGS"
+        --extra-cflags="$CFLAGS -DLIBXML_STATIC -I$prefix/include" \
+        --extra-cxxflags="$CXXFLAGS -DLIBXML_STATIC -I$prefix/include" \
+        --extra-ldflags="$LDFLAGS -L$prefix/lib"
     make -j "${BUILD_JOBS:-2}"
     make install
 )

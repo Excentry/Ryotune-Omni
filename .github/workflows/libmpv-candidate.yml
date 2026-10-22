@@ -66,6 +66,9 @@ jobs:
             ${{ runner.temp }}/libmpv-output/toolchain.txt
             ${{ runner.temp }}/libmpv-output/*-options.json
             ${{ runner.temp }}/libmpv-output/*-dependencies.json
+            ${{ runner.temp }}/libmpv-output/builds/ffmpeg/ffbuild/config.log
+            ${{ runner.temp }}/libmpv-output/builds/*/meson-logs/meson-log.txt
+            ${{ runner.temp }}/libmpv-output/prefix/lib/pkgconfig/libxml-2.0.pc
           if-no-files-found: warn
 
       - name: Retain candidate without publishing a release
