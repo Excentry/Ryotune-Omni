@@ -1,0 +1,54 @@
+# Candidate license review and source delivery
+
+Reviewed against the snapshots in `sources.lock.json` on 2026-10-22. This is a recipe-level inventory, not a completed per-file audit or distribution approval. Inclusion in a source archive does not prove inclusion in the DLL. Confirm actual linkage using build options, dependency records, compilation inputs and PE imports.
+
+## Pinned inputs
+
+Paths below are relative to the extracted `sources/` directory. Original notices are retained under the same paths in the candidate's `licenses/` directory. Some complete source files are included there to preserve embedded grants byte-for-byte, without attempting to rewrite their terms.
+
+| Input | License evidence and selected terms | Recipe role and delivery requirements |
+| --- | --- | --- |
+| mpv | `mpv/Copyright`, `LICENSE.GPL`, `LICENSE.LGPL`: GPL-2.0-or-later by default, with LGPL and permissive files | Shared DLL, GPL enabled. Preserve original grants and supply corresponding source/build scripts; GPLv3 is the intended combined-distribution baseline, not a replacement for original file licenses. |
+| FFmpeg | `ffmpeg/LICENSE.md`, `COPYING.GPLv3`: recipe selects GPL and version 3 | Static codec/filter libraries. Preserve all notices and corresponding sources. IJG-derived files `libavcodec/jfdctfst.c`, `jfdctint_template.c`, `jrevdct.c` carry additional notices; accompanying NOTICE includes IJG credit. Recipe does not patch these files. |
+| Rubber Band | `rubberband/README.md`, `COPYING`: GPL-2.0-or-later; commercial alternative not used | Static pitch/time-stretch library, builtin FFT and BQ resampler. Pommier SSE math has a zlib grant; `src/ext/float_cast/float_cast.h` has a separate permissive grant. Preserve both. KissFFT, Speex and external FFT/resampler alternatives are not selected by this recipe. |
+| libplacebo | `libplacebo/LICENSE`, `src/convert.cc`: LGPL-2.1-or-later | Static library. Preserve LGPL notices and complete source/build instructions; resolve combined GPL distribution obligations before release. Graphics APIs are disabled by recipe options; confirm resulting build records. |
+| FreeType | `freetype/LICENSE.TXT`, `docs/FTL.TXT`: FTL selected, rather than GPL alternative | Static font engine. NOTICE supplies FreeType credit; retain FTL and separate BDF/PCF grants in their README/source files. `src/gzip/zlib.h` has a zlib grant; disabling external zlib is not proof that bundled gzip code is absent. HarfBuzz integration is disabled here. |
+| FriBidi | `fribidi/lib/fribidi.h`, `COPYING`: LGPL-2.1-or-later | Static bidi library. Preserve original grant, license and corresponding source/build materials. |
+| HarfBuzz | `harfbuzz/COPYING`: Old MIT; `src/ms-use/COPYING`: Microsoft MIT | Static shaping library. The USE table references Microsoft override inputs; their MIT grant is explicitly required by packaging. Subset, utilities, raster, vector, GPU and tests are disabled. Other COPYING files are in test/performance data, whose notices remain with source redistribution. This narrows the exception inventory but is not a complete audit of generated Unicode data or every source file. |
+| libass | `libass/COPYING`: ISC | Static subtitle library, DirectWrite enabled. Preserve copyright, permission and warranty text. |
+| libxml2 | `libxml2/Copyright`: MIT; `dict.c` and `list.c`: separate permissive grants | Static XML library for DASH. Copy both embedded grants in addition to root Copyright; preserve their distinct copyright holders. |
+| fast-float | `libplacebo/3rdparty/fast_float/LICENSE-MIT`: MIT option selected | Header-only libplacebo conversion input; actual use depends on compiler/header detection. Preserve MIT notice conservatively; original alternative license texts are also collected. |
+| Jinja | `libplacebo/3rdparty/jinja/LICENSE.txt`: BSD-3-Clause | Host-side generation support on libplacebo's Python path, not itself a target DLL dependency. Preserve source license and non-endorsement terms in redistributed snapshot. |
+| MarkupSafe | `libplacebo/3rdparty/markupsafe/LICENSE.txt`: BSD-3-Clause | Host-side Jinja dependency, not itself a target DLL dependency. Preserve source license and non-endorsement terms. |
+| glad | `libplacebo/3rdparty/glad/LICENSE`: MIT generator, Apache-2.0 Khronos specifications, permissive EGL terms | Generator/specification input; not an independently linked library. Graphics-disabled recipe does not imply redistribution of this source snapshot is notice-free. Review generated output if graphics are enabled later. |
+| Vulkan-Headers | `libplacebo/3rdparty/Vulkan-Headers/LICENSE.md`, `LICENSES/`: Apache-2.0 and MIT, with per-file alternatives | Preserved header/registry snapshot; Vulkan backend disabled. Include full license texts, not only root file's links. Re-evaluate compiled headers if backend configuration changes. |
+| Nuklear | `libplacebo/demos/3rdparty/nuklear/LICENSE`: MIT or Unlicense; MIT option selected | Demo-only snapshot, not compiled with demos disabled. Retain its MIT notice with sources. |
+
+## Separate compiler/runtime gate
+
+The 15 snapshots are not the complete provenance inventory for a Windows binary. `libstdc++.a`, libgcc, MinGW-w64 CRT/startup objects and any other compiler-supplied objects need their exact versions, source provenance, licenses and applicable runtime exceptions checked against the pinned image and final link. Recording an archive hash does not establish an exception or fulfill source obligations. Do not claim these runtime sources are already in `source-inputs.tar.gz`. Windows OS DLL imports must be distinguished from bundled runtime code. This gate remains open.
+
+Five original GCC/MinGW notice texts are now fixed by revision and SHA-256 in `notice-inputs.lock.json`, verified during preparation and packaging, included in the source archive's recipe, and delivered under `licenses/toolchain/`. They include GPLv3, GCC Runtime Library Exception 3.1, MinGW's root and runtime notices, and winpthreads' MIT/BSD notices. These are additional notice inputs, not five complete source snapshots. See `licenses/toolchain/README.md` for the provenance limits and the unresolved upstream Cephes/Wine references.
+
+The GCC exception permits eligible target-code combinations with independent modules under their own terms; it does not remove the GPL obligations of mpv/FFmpeg/Rubber Band. Verify each applicable runtime grant and the effective toolchain patches before relying on that exception. Retain sources for anything requiring them; do not assume all compiler-produced material has the same grant.
+
+## First linked candidate evidence
+
+Run [39792004346](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39792004346), commit `6d47f321a2232e8e3b6963a59512c74bd9b4d526`, successfully cross-compiled the DLL but failed Windows loading before the MSVC regression. The downloaded artifact's checksum manifest passed verification. Its DLL SHA-256 is `c3e34c765df883314795586fb9cfba10b53ad1ad7760333de892953fb10c0510`; its source archive SHA-256 is `86796e5ef960ea9f087d0b3b566e9e4fee3745a1532eabff4b5db6dd91ee1175`. Do not replace that archive with a later recipe bundle.
+
+Observed toolchain: GCC/G++ 16.2.0, crosstool-NG `1.29.0.7_b1a94f6`. The explicit `libstdc++.a` hash is `21786f24ebe6090420fb28862e3a949b75f9661f60a2f5b6b1a100b8c71b4ab0`. The artifact reports 32 distinct DLL imports: 31 reviewed Windows/UCRT imports and an unbundled `libgcc_s_seh-1.dll`. Thus it is not a self-contained candidate. `mpv-options.json` shows C link arguments without `-static-libgcc`, while C++ link arguments retain it: the explicit C argument override dropped the environment's static-runtime selection.
+
+The next recipe restores `-static-libgcc` explicitly, records a final link map and hashes resolved runtime inputs. Packaging now rejects empty import evidence and any DLL name outside the reviewed Windows/UCRT list, including shared GCC/C++/winpthread runtimes. This checks the generated objdump report, not DLL authenticity, runtime compatibility, delay-loaded libraries or dynamically loaded modules. The Windows loader test remains required. The correction, expanded notices and new gates are not present in the first artifact and require a fresh build/source pair.
+
+## Delivery arrangement
+
+1. Keep the candidate unapproved until linkage, embedded notices, compiler/runtime provenance, Windows tests and application-level GPL compatibility are reviewed. The packaging guard checks known required notices; it is not proof that all per-file notices have been found.
+2. Deliver the candidate directory intact: DLL, import library, headers, `NOTICE.md`, this review, `licenses/`, `sources.lock.json`, `notice-inputs.lock.json`, `candidate.json`, `toolchain.txt`, PE imports, final link map, dependency/options records, `source-inputs.tar.gz` and `SHA256SUMS.txt`. Verify hashes before upload and after download. The bundled source archive must come from this exact build's preparation, not an older local run.
+3. For network distribution, provide free equivalent source access beside the matching binary from the same download location, clearly linked. Do not rely on upstream repository links, a commit ID alone, or expiring Actions artifacts. Preserve the published binary/source pair and build evidence durably; do not replace a source asset with a different build's inputs.
+4. Supply missing runtime sources/notices or document a verified applicable exception/exclusion before describing the source set as complete. Preserve any local source patches and modification notices. No upstream source patches are currently applied by this recipe; build-generated files are not represented as hand-written source changes.
+5. If shipping Ryotunes Omni with this GPL candidate, include the corresponding application sources and build/install scripts needed for that combined work under compatible terms, with any required installation information. The DLL's source bundle alone does not cover the application's obligations. Review installer/EULA/store restrictions; do not add restrictions conflicting with recipient rights.
+6. Before release, rehearse offline extraction and rebuilding with the recorded toolchain. The present bundle pins an external container; its long-term availability and the usability/completeness of the reconstruction instructions still need validation. No written-offer distribution route or public hosting change is made by this review.
+
+## Remaining review
+
+Map actual compiled files and generated code to non-default notices across all libraries; review HarfBuzz and bundled third-party exceptions; finish GCC/MinGW provenance; inspect final imports; validate exact source/binary pairing, durable hosting, clean Windows installation and application distribution terms. A successful build does not close these items automatically.

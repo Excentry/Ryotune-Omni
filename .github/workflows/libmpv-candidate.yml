@@ -64,6 +64,7 @@ jobs:
           path: |
             ${{ runner.temp }}/libmpv-output/build.log
             ${{ runner.temp }}/libmpv-output/toolchain.txt
+            ${{ runner.temp }}/libmpv-output/libmpv-link.map
             ${{ runner.temp }}/libmpv-output/*-options.json
             ${{ runner.temp }}/libmpv-output/*-dependencies.json
             ${{ runner.temp }}/libmpv-output/builds/ffmpeg/ffbuild/config.log

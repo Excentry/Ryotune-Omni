@@ -50,6 +50,25 @@ def load_lock(path):
     return lock
 
 
+def load_notice_inputs(recipe):
+    lock = json.loads((recipe / "notice-inputs.lock.json").read_text(encoding="utf-8"))
+    if lock.get("schema") != 1 or not lock.get("files"):
+        raise ValueError("Unsupported or empty notice lock")
+    paths = set()
+    for entry in lock["files"]:
+        relative = safe_relative(entry["path"])
+        if str(relative) in paths:
+            raise ValueError("Duplicate notice input")
+        paths.add(str(relative))
+        if not re.fullmatch(r"https://raw\.githubusercontent\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[a-f0-9]{40}/[^\s]+", entry.get("url", "")):
+            raise ValueError("Notice URL must use a fixed upstream revision")
+        if not re.fullmatch(r"[a-f0-9]{64}", entry.get("sha256", "")):
+            raise ValueError("Missing notice checksum")
+        if digest(recipe / "toolchain-licenses" / str(relative)) != entry["sha256"]:
+            raise ValueError(f"Notice checksum mismatch: {relative}")
+    return lock
+
+
 def acquire(source, cache, offline):
     path = cache / f"{source['name']}.tar.gz"
     if path.exists():
@@ -96,6 +115,7 @@ def extract_source(archive_path, destination, revision):
 
 def prepare(output, cache, offline=False, verify_only=False):
     lock = load_lock(RECIPE / "sources.lock.json")
+    load_notice_inputs(RECIPE)
     cache.mkdir(parents=True, exist_ok=True)
     inputs = [(source, acquire(source, cache, offline)) for source in lock["sources"]]
     if verify_only:

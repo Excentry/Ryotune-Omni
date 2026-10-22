@@ -1,6 +1,7 @@
 import copy
 import io
 import json
+import shutil
 import tempfile
 import tarfile
 import unittest
@@ -28,6 +29,33 @@ class SourcePreparationTests(unittest.TestCase):
         lock = prepare.load_lock(prepare.RECIPE / "sources.lock.json")
         self.assertEqual(len(lock["sources"]), 15)
         self.assertNotIn("subrandr", {source["name"] for source in lock["sources"]})
+
+    def test_checked_in_toolchain_notices_match_locked_bytes(self):
+        lock = prepare.load_notice_inputs(prepare.RECIPE)
+        self.assertEqual(len(lock["files"]), 5)
+
+    def test_notice_lock_rejects_unpinned_urls_and_unsafe_paths(self):
+        original = json.loads((prepare.RECIPE / "notice-inputs.lock.json").read_text())
+        for field, value in (("url", "https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING.RUNTIME"), ("path", "../outside"), ("sha256", "unverified")):
+            with self.subTest(field=field):
+                lock = copy.deepcopy(original)
+                lock["files"][0][field] = value
+                (self.root / "notice-inputs.lock.json").write_text(json.dumps(lock))
+                with self.assertRaises(ValueError):
+                    prepare.load_notice_inputs(self.root)
+
+    def test_notice_lock_rejects_duplicate_inputs(self):
+        shutil.copytree(prepare.RECIPE / "toolchain-licenses", self.root / "toolchain-licenses")
+        lock = json.loads((prepare.RECIPE / "notice-inputs.lock.json").read_text())
+        lock["files"].append(copy.deepcopy(lock["files"][0]))
+        (self.root / "notice-inputs.lock.json").write_text(json.dumps(lock))
+        with self.assertRaisesRegex(ValueError, "Duplicate notice input"):
+            prepare.load_notice_inputs(self.root)
+
+    def test_missing_locked_notice_is_rejected(self):
+        shutil.copyfile(prepare.RECIPE / "notice-inputs.lock.json", self.root / "notice-inputs.lock.json")
+        with self.assertRaises(FileNotFoundError):
+            prepare.load_notice_inputs(self.root)
 
     def test_cached_tampering_is_rejected_even_offline(self):
         path = self.root / "example.tar.gz"

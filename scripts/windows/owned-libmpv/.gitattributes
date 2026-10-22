@@ -1,0 +1,2 @@
+toolchain-licenses/gcc/* -text -whitespace
+toolchain-licenses/mingw-w64/* -text -whitespace

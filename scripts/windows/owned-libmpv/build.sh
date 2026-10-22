@@ -40,7 +40,18 @@ test -f "$cxx_runtime"
     pkg-config --version
     printf 'Static C++ runtime: %s\n' "$cxx_runtime"
     sha256sum "$cxx_runtime"
-} > "$output/toolchain.txt"
+    "$CC" -v
+    "$CC" -print-sysroot
+    "$CC" -print-search-dirs
+    for runtime in libgcc.a libgcc_eh.a libmingw32.a libmingwex.a libwinpthread.a crtbegin.o crtend.o dllcrt2.o; do
+        runtime_path="$("$CC" -print-file-name="$runtime")"
+        if [[ -f "$runtime_path" ]]; then
+            sha256sum "$runtime_path"
+        else
+            printf 'Unresolved runtime input: %s\n' "$runtime"
+        fi
+    done
+} > "$output/toolchain.txt" 2>&1
 mkdir -p "$builds/runtime"
 printf '#include <vector>\nextern "C" int owned_runtime_probe(int size) { std::vector<int> values(size); return values.at(size); }\n' > "$builds/runtime/probe.cpp"
 printf 'extern int owned_runtime_probe(int);\nint main(void) { return owned_runtime_probe(1); }\n' > "$builds/runtime/probe.c"
@@ -113,7 +124,7 @@ printf '#include <libxml2/libxml/xmlversion.h>\nint main(void) { xmlCheckVersion
 meson_build mpv -Dlibmpv=true -Dcplayer=false \
     -Dgpl=true -Dbuild-date=false -Dlua=disabled -Dgl=disabled \
     -Dwin32-threads=enabled -Dwasapi=enabled -Drubberband=enabled \
-    "-Dc_link_args=$cxx_runtime"
+    "-Dc_link_args=['-static-libgcc', '$cxx_runtime', '-Wl,-Map=$output/libmpv-link.map']"
 grep -Eq '^#define HAVE_WASAPI 1$' "$builds/mpv/config.h"
 grep -Eq '^#define HAVE_RUBBERBAND 1$' "$builds/mpv/config.h"
 grep -Eq '^#define CONFIG_SCHANNEL 1$' "$builds/ffmpeg/config.h"
@@ -128,5 +139,6 @@ cp "$sources/mpv/include/mpv/"*.h "$output/candidate/include/mpv/"
 cp "$output/prepared/source-inputs.tar.gz" "$output/candidate/"
 cp "$input/recipe/NOTICE.md" "$output/candidate/NOTICE.md"
 cp "$output/toolchain.txt" "$output/candidate/"
+cp "$output/libmpv-link.map" "$output/candidate/"
 x86_64-w64-mingw32-objdump -p "$output/candidate/libmpv-2.dll" > "$output/candidate/pe-imports.txt"
 python3 "$input/recipe/package.py" "$output"
