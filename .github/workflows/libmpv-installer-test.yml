@@ -70,8 +70,12 @@ jobs:
           }
           if (-not (Test-Path candidate/mpv.lib)) { throw 'Candidate MSVC import library missing' }
           Copy-Item candidate/libmpv-2.dll src-tauri/libmpv-2.dll -Force
-          Copy-Item candidate/licenses/ffmpeg src-tauri/licenses/ffmpeg -Recurse -Force
-          Copy-Item candidate/licenses/mpv src-tauri/licenses/mpv -Recurse -Force
+          New-Item -ItemType Directory -Path src-tauri/licenses/ffmpeg, src-tauri/licenses/mpv -Force | Out-Null
+          Copy-Item candidate/licenses/ffmpeg/* src-tauri/licenses/ffmpeg -Recurse -Force
+          Copy-Item candidate/licenses/mpv/* src-tauri/licenses/mpv -Recurse -Force
+          if (-not (Test-Path src-tauri/licenses/mpv/LICENSE.GPL)) {
+            throw 'Candidate mpv GPL license was not staged at the configured resource path'
+          }
           $env:LIB = "$(Resolve-Path candidate);$env:LIB"
           "LIB=$env:LIB" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
