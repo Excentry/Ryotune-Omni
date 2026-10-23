@@ -6,8 +6,6 @@ mkdir -p "$output"
 touch "$output/build.log"
 exec > >(tee "$output/build.log") 2>&1
 python3 "$input/recipe/prepare.py" --offline --cache "$input/archives" --output "$output/prepared"
-test -s "$input/source-inputs.tar.gz"
-cp "$input/source-inputs.tar.gz" "$output/prepared/source-inputs.tar.gz"
 sources="$output/prepared/sources"
 prefix="$output/prefix"
 builds="$output/builds"
