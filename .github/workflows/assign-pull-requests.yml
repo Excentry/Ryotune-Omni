@@ -27,8 +27,8 @@ jobs:
               throw new Error('Issue-owner config is missing or not a file.');
             }
             const ownerPolicy = JSON.parse(Buffer.from(ownerFile.data.content, 'base64').toString('utf8'));
-            if (!ownerPolicy.label_owners || !ownerPolicy.opener_fallback) {
-              throw new Error('Issue-owner config must define label_owners and opener_fallback.');
+            if (!ownerPolicy.label_owners || !Array.isArray(ownerPolicy.default_assignees)) {
+              throw new Error('Issue-owner config must define label_owners and default_assignees.');
             }
             const pullRequest = context.payload.pull_request;
             const labelNames = new Set(pullRequest.labels.map(label => typeof label === 'string' ? label : label.name));
@@ -74,7 +74,17 @@ jobs:
               core.info(`Added labels: ${missingLabels.join(', ')}`);
             }
 
-            const opener = pullRequest.user.login;
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            };
+            await ensureLabel('needs: windows', '1d76db', 'Completion requires a Windows build, runtime, or device.');
+            await ensureLabel('assignment: split', '5319e7', 'Work is independently actionable and intentionally shared between maintainers.');
+
             const effectiveLabels = new Set([...labelNames, ...missingLabels]);
             const selectedOwners = new Set();
             for (const label of effectiveLabels) {
@@ -82,9 +92,9 @@ jobs:
             }
             const assignees = selectedOwners.size > 0
               ? [...selectedOwners]
-              : ownerPolicy.opener_fallback[opener.toLowerCase()] || [];
+              : ownerPolicy.default_assignees;
             if (assignees.length === 0) {
-              core.info(`No assignment rule for opener ${opener}; leaving unassigned.`);
+              core.info('No assignment rule matched; leaving unassigned.');
             } else if (pullRequest.assignees.length > 0) {
               core.info('Pull request already has an assignee; leaving it as is.');
             } else {
@@ -94,5 +104,5 @@ jobs:
                 issue_number: pullRequest.number,
                 assignees,
               });
-              core.info(`Pull request opened by ${opener} assigned to ${assignees.join(', ')}.`);
+              core.info(`Pull request assigned by work requirements to ${assignees.join(', ')}.`);
             }
