@@ -8,9 +8,13 @@ function ok(condition: boolean, message: string): void {
 const calls: Array<{ kind: string; name: string; payload?: unknown }> = [];
 const listeners = new Map<string, (event: { payload: unknown }) => void>();
 const unlisten: UnlistenFn = () => {};
+let rejectLogin = false;
 const bridge = createAuthBridge(
 	async <T>(command: string, args?: Record<string, unknown>) => {
 		calls.push({ kind: 'invoke', name: command, payload: args });
+		if (command === 'login_webview' && rejectLogin) {
+			throw new Error('Sign-in timed out. Please try again.');
+		}
 		return undefined as T;
 	},
 	async <T>(event: string, handler: (event: { payload: T }) => void) => {
@@ -41,9 +45,11 @@ ok(receivedError.includes('timed out'), 'login error payload reaches UI');
 ok(completed, 'login completion event reaches UI');
 
 let recoverableError = '';
-await startLogin(async () => {
-	throw new Error('native bridge unavailable');
-}, (message) => (recoverableError = message));
-ok(recoverableError === 'Error: native bridge unavailable', 'invoke rejection becomes recoverable UI error');
+rejectLogin = true;
+await startLogin(bridge.loginWebview, (message) => (recoverableError = message));
+ok(
+	recoverableError === 'Error: Sign-in timed out. Please try again.',
+	'login command rejection becomes recoverable UI error'
+);
 
 console.log('ok');

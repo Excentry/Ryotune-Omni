@@ -496,12 +496,20 @@ pub async fn sign_out(state: St<'_>) -> Result<(), String> {
     Ok(())
 }
 
-/// Open the in-app Google sign-in webview (authentication flow Path A). Completes asynchronously; the UI
-/// hears back via `auth-changed` (success) or `login-error`.
+/// Open the in-app Google sign-in webview (authentication flow Path A). The UI receives auth changes
+/// via events and login failures through the rejected invocation.
 #[tauri::command]
-pub async fn login_webview(state: St<'_>) -> Result<(), String> {
+pub async fn login_webview(
+    state: St<'_>,
+    login_command: State<'_, crate::host_sink::LoginCommandState>,
+) -> Result<(), String> {
+    let _serial = login_command.lock().await;
+    login_command.clear_error();
     state.inner().sign_in().await;
-    Ok(())
+    match login_command.take_error() {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 /// The current track, play state, position and duration in one shot. Events are the normal

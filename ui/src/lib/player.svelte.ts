@@ -1014,7 +1014,6 @@ export function initApp(mini = false): () => void {
 			auth.epoch++;
 		}),
 		api.onAccountSelectionRequired(() => openChannelPicker(true)),
-		api.onLoginError((msg) => toast.error(msg)),
 		api.onLoginDone(() => toast.success('Signed in')),
 		// Listen Together (session protocol): mirror the Rust session state; surface notices as toasts.
 		api.onLtState((s) => {

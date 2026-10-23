@@ -353,9 +353,13 @@ pub fn run() {
                 potoken.clone(),
             ));
 
+            let login_command_state = host_sink::LoginCommandState::default();
+            let login_errors = login_command_state.error_slot();
+            app.manage(login_command_state);
+
             // Push channel to every UI window: core emits through this sink, the host fans out.
             let sink: Arc<dyn ryotunes_core::host::EventSink> =
-                Arc::new(host_sink::TauriSink(handle.clone()));
+                Arc::new(host_sink::TauriSink::new(handle.clone(), login_errors));
 
             // OS media controls (MPRIS/SMTC/NowPlaying). Control presses arrive over `media_rx`;
             // the drain below routes them into AppState once it is managed. fail-soft policy, D11.
