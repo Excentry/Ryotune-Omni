@@ -23,7 +23,8 @@
 		personal,
 		playback,
 		seedOnRepeatPick,
-		toast
+		toast,
+		startGoogleLogin
 	} from '$lib/player.svelte';
 	import {
 		arrangeSections,
@@ -367,7 +368,7 @@
 					{#if auth.account?.signedIn}
 						<Button variant="outline" size="sm" onclick={() => load(selected)}>{t('Try again')}</Button>
 					{:else}
-						<Button size="sm" onclick={() => api.loginWebview()}>{t('Sign in with Google')}</Button>
+						<Button size="sm" onclick={startGoogleLogin}>{t('Sign in with Google')}</Button>
 					{/if}
 				</div>
 			{:else if home.continuation}

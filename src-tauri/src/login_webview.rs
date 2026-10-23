@@ -18,6 +18,7 @@ use ryotunes_core::host::{LoginError, LoginFlow, LoginResult};
 use ryotunes_core::session::{allowed_login_navigation, LOGIN_URL};
 
 const LOGIN_LABEL: &str = "login";
+const LOGIN_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// WebKitGTK is a WebKit engine, so a macOS Safari UA is the most internally-consistent spoof and
 /// the least likely to trip Google's "this browser may not be secure" block. **Tune here** if
@@ -78,7 +79,16 @@ impl LoginFlow for TauriLogin {
             return Err(LoginError::Failed("Couldn't open the sign-in window".into()));
         }
 
-        while let Some(ev) = rx.recv().await {
+        let deadline = tokio::time::Instant::now() + LOGIN_TIMEOUT;
+        loop {
+            let ev = match recv_login_event(&mut rx, deadline).await {
+                Ok(Some(ev)) => ev,
+                Ok(None) => break,
+                Err(()) => {
+                    close_login(&app);
+                    return Err(LoginError::Failed("Sign-in timed out. Please try again.".into()));
+                }
+            };
             match ev {
                 LoginEvent::BuildFailed(e) => {
                     close_login(&app);
@@ -103,6 +113,13 @@ impl LoginFlow for TauriLogin {
         close_login(&app);
         Err(LoginError::Cancelled)
     }
+}
+
+async fn recv_login_event(
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<LoginEvent>,
+    deadline: tokio::time::Instant,
+) -> Result<Option<LoginEvent>, ()> {
+    tokio::time::timeout_at(deadline, rx.recv()).await.map_err(|_| ())
 }
 
 /// Read the youtube-domain cookies from the login window as `name=value` pairs. Reads the platform
@@ -197,5 +214,28 @@ mod tests {
             cookie("PREF=specific; Domain=music.youtube.com"),
         ]));
         assert_eq!(header, "PREF=specific");
+    }
+
+    #[tokio::test]
+    async fn login_event_wait_times_out() {
+        let (_tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(10);
+        assert!(matches!(recv_login_event(&mut rx, deadline).await, Err(())));
+    }
+
+    #[tokio::test]
+    async fn closing_login_window_ends_the_event_channel() {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        drop(tx);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+        assert!(matches!(recv_login_event(&mut rx, deadline).await, Ok(None)));
+    }
+
+    #[tokio::test]
+    async fn login_event_arrives_before_deadline() {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        assert!(tx.send(LoginEvent::Landed).is_ok());
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+        assert!(matches!(recv_login_event(&mut rx, deadline).await, Ok(Some(LoginEvent::Landed))));
     }
 }

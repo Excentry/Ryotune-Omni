@@ -2,6 +2,20 @@
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "targets": ["nsis", "msi"],
-    "resources": ["libmpv-2.dll"]
+    "license": "GPL-3.0-or-later",
+    "licenseFile": "../LICENSE",
+    "resources": {
+      "libmpv-2.dll": "libmpv-2.dll",
+      "../LICENSE": "licenses/project/LICENSE",
+      "licenses/mpv/NOTICE.md": "licenses/mpv/NOTICE.md",
+      "licenses/mpv/Copyright": "licenses/mpv/Copyright",
+      "licenses/mpv/LICENSE.GPL": "licenses/mpv/LICENSE.GPL",
+      "licenses/mpv/LICENSE.LGPL": "licenses/mpv/LICENSE.LGPL",
+      "licenses/ffmpeg/LICENSE.md": "licenses/ffmpeg/LICENSE.md",
+      "licenses/ffmpeg/COPYING.GPLv2": "licenses/ffmpeg/COPYING.GPLv2",
+      "licenses/ffmpeg/COPYING.GPLv3": "licenses/ffmpeg/COPYING.GPLv3",
+      "licenses/ffmpeg/COPYING.LGPLv2.1": "licenses/ffmpeg/COPYING.LGPLv2.1",
+      "licenses/ffmpeg/COPYING.LGPLv3": "licenses/ffmpeg/COPYING.LGPLv3"
+    }
   }
 }

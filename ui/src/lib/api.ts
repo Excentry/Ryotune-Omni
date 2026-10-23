@@ -2,6 +2,9 @@
 // touches YouTube; everything here is a Tauri command or event payload.
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { createAuthBridge } from '$lib/auth-bridge';
+
+const authBridge = createAuthBridge(invoke, listen);
 
 /** How the signed-in user rated a track (innertube `Rating`). The three states are mutually
  *  exclusive: liking a disliked track clears the dislike, and vice versa. */
@@ -426,14 +429,13 @@ export const getPersonal = () => invoke<{ personal: unknown }>('get_personal');
 export const setPersonal = (personal: unknown) => invoke<void>('set_personal', { personal });
 
 // --- auth (authentication flow) ---------------------------------------------------------------------
-export const getAccount = () => invoke<Account>('get_account');
-export const getAccountIdentities = () =>
-	invoke<AccountIdentity[]>('get_account_identities');
+export const getAccount = () => authBridge.getAccount<Account>();
+export const getAccountIdentities = () => authBridge.getAccountIdentities<AccountIdentity[]>();
 export const switchAccount = (selectionKey: string) =>
-	invoke<Account>('switch_account', { selectionKey });
-export const signOut = () => invoke<void>('sign_out');
+	authBridge.switchAccount<Account>(selectionKey);
+export const signOut = authBridge.signOut;
 /** Open the in-app Google sign-in webview (authentication flow Path A). Result arrives via onAuthChanged. */
-export const loginWebview = () => invoke<void>('login_webview');
+export const loginWebview = authBridge.loginWebview;
 
 // --- window readiness / mini player -------------------------------------------------------------
 /** Reveal a hidden WebView only after its Svelte tree has mounted. Native lifecycle owns the swap. */
@@ -614,9 +616,9 @@ export const onPlaybackNotice = (cb: (msg: string) => void): Promise<UnlistenFn>
 export const onCoverError = (cb: (msg: string) => void): Promise<UnlistenFn> =>
 	listen<{ message: string }>('cover-error', (e) => cb(e.payload.message));
 export const onAuthChanged = (cb: (a: Account) => void): Promise<UnlistenFn> =>
-	listen<Account>('auth-changed', (e) => cb(e.payload));
+	authBridge.onAuthChanged(cb);
 export const onAccountSelectionRequired = (cb: () => void): Promise<UnlistenFn> =>
-	listen('account-selection-required', () => cb());
+	authBridge.onAccountSelectionRequired(cb);
 /**
  * Local music disappeared from disk. Fired when a play attempt finds nothing there, carrying the
  * song (and album, if that emptied it) so every view holding those ids can drop them at once.
@@ -624,9 +626,9 @@ export const onAccountSelectionRequired = (cb: () => void): Promise<UnlistenFn> 
 export const onLocalChanged = (cb: (removed: string[]) => void): Promise<UnlistenFn> =>
 	listen<{ removed: string[] }>('local-changed', (e) => cb(e.payload.removed));
 export const onLoginError = (cb: (msg: string) => void): Promise<UnlistenFn> =>
-	listen<string>('login-error', (e) => cb(e.payload));
+	authBridge.onLoginError(cb);
 export const onLoginDone = (cb: () => void): Promise<UnlistenFn> =>
-	listen('login-done', () => cb());
+	authBridge.onLoginDone(cb);
 
 // --- Ryoku live design tokens ---------------------------------------------------------------
 export interface RyokuThemeTokens {

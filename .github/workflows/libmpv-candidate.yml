@@ -1,0 +1,113 @@
+name: libmpv Windows candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test/libmpv-owned-build
+    paths:
+      - .github/workflows/libmpv-candidate.yml
+      - scripts/windows/owned-libmpv/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libmpv-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test source preparation guards
+        run: python -m unittest discover -s scripts/windows/owned-libmpv -p 'test_*.py' -v
+
+      - name: Preserve verified sources before building
+        run: python scripts/windows/owned-libmpv/prepare.py --output "$RUNNER_TEMP/libmpv-input" --cache "$RUNNER_TEMP/libmpv-cache"
+
+      - name: Retain source inputs independently of build success
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-source-inputs
+          path: ${{ runner.temp }}/libmpv-input/source-inputs.tar.gz
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Cross compile without network access
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="$(python -c 'import json; print(json.load(open("scripts/windows/owned-libmpv/sources.lock.json"))["toolchain_image"])')"
+          docker pull "$image"
+          mkdir -p "$RUNNER_TEMP/libmpv-output/home"
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/output/home --env XDG_CACHE_HOME=/output/home/.cache \
+            -v "$RUNNER_TEMP/libmpv-input:/input:ro" \
+            -v "$RUNNER_TEMP/libmpv-output:/output" \
+            "$image" bash /input/recipe/build.sh /input /output
+
+      - name: Retain build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-build-evidence
+          path: |
+            ${{ runner.temp }}/libmpv-output/build.log
+            ${{ runner.temp }}/libmpv-output/toolchain.txt
+            ${{ runner.temp }}/libmpv-output/libmpv-link.map
+            ${{ runner.temp }}/libmpv-output/*-options.json
+            ${{ runner.temp }}/libmpv-output/*-dependencies.json
+            ${{ runner.temp }}/libmpv-output/builds/ffmpeg/ffbuild/config.log
+            ${{ runner.temp }}/libmpv-output/builds/*/meson-logs/meson-log.txt
+            ${{ runner.temp }}/libmpv-output/prefix/lib/pkgconfig/libxml-2.0.pc
+          if-no-files-found: warn
+
+      - name: Retain candidate without publishing a release
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-windows-x64-candidate
+          path: ${{ runner.temp }}/libmpv-output/candidate
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+
+  windows:
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: libmpv-windows-x64-candidate
+          path: candidate
+
+      - name: Verify candidate and exercise libmpv directly
+        run: python scripts/windows/owned-libmpv/smoke.py --dll candidate/libmpv-2.dll
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate MSVC import library and player effects regression
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $candidate = (Resolve-Path candidate).Path
+          $env:LIB = "$candidate;$env:LIB"
+          $env:PATH = "$candidate;$env:PATH"
+          cargo test --locked -p player mpv_keeps_the_gain_through_pitch_changes_and_failures -- --nocapture --test-threads=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

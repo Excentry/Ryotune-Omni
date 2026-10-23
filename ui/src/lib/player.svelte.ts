@@ -3,6 +3,7 @@
 // UI state contract — this module only calls commands / subscribes to events.
 import { browser } from '$app/environment';
 import * as api from './api';
+import { startLogin } from './auth-bridge';
 import type {
 	Account,
 	AccountIdentity,
@@ -879,6 +880,10 @@ export const toast = Object.assign((msg: string) => show(msg, 'info'), {
 	success: (msg: string) => show(msg, 'success'),
 	error: (msg: string) => show(msg, 'error')
 });
+
+export function startGoogleLogin() {
+	void startLogin(api.loginWebview, (message) => toast.error(message));
+}
 
 export function openShare(item: BrowseItem) {
 	ui.share = item;

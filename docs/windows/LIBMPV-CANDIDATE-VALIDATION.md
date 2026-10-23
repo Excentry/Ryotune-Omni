@@ -1,0 +1,100 @@
+# Owned libmpv candidate validation
+
+## Frozen candidate
+
+- CI run: <https://github.com/Excentry/Ryotunes-Omni/actions/runs/39796468807>
+- Recipe commit: `2596d06d5f9462614f57e4300f936a2961581778`
+- DLL SHA-256: `a63580d610114bd039f79c72e0bd99b57c3276df77d98a0774830035ea5210c1`
+- Native source-input archive SHA-256: `a816c51a586aca4ca7dac19d36cb433109259830f8162e5a47d6df967ad31496`
+- Active application DLL remains `5816ca7aeab4d07774f3b26c465ee6691c41660ba7288381949413c9844bcdf7`; it has not been promoted or overwritten.
+
+The downloaded candidate directory is immutable evidence. Supplementary local reports, source-delivery materials and installer experiments live beside it, not inside its checksum manifest. This is a validation candidate, not an approved Omni release.
+
+## Checks completed
+
+| Check | Result | Scope |
+| --- | --- | --- |
+| Cross-compilation and packaging | Passed in CI | Pinned inputs, network-disabled build, notice checks and reviewed import list. |
+| Windows loading and API smoke | Passed in CI and local Windows | GitHub Actions run [39796468807](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39796468807) passed on `windows-2025`; CI artifact DLL hash exactly matches the frozen candidate (`a63580d610114bd039f79c72e0bd99b57c3276df77d98a0774830035ea5210c1`). Generated WAV, filter acceptance, seek request and pause state. |
+| MSVC import library and player regression | Passed in CI | Same Windows Actions run passed the gain/pitch/failure regression against the candidate DLL and its MSVC import library. |
+| Local codec/lifecycle matrix | Passed | PCM/WAV, MP3, AAC/M4A, Opus, Vorbis, FLAC, ALAC; decode readiness, measured seek position, speed, filters, playback progress, pause, EOF and explicit stop. |
+| HTTP headers | Passed with local fixtures | Server requires the expected non-secret header on manifest and segment requests. |
+| HLS and DASH | Passed with local AAC fixtures | Manifest/segment loading, seek/progress/EOF; not authenticated provider streams. |
+| WASAPI/FxSound | Passed, including human confirmation | Programmatic progress/lifecycle passed at internal volume 10%. The user did not hear the low-volume repeat; an explicit four-second FxSound test at internal volume 80%, with player/output mute off, was subsequently confirmed audible by the user. No system volume or default output was changed. |
+| HTTPS/Schannel | Passed with public fixture | Wikimedia Example.ogg loads and completes playback lifecycle with TLS verification enabled. |
+| Invalid certificate rejection | Passed | `https://expired.badssl.com/` fails with Schannel `0x80090328`; no TLS verification bypass or root certificate installation. |
+| Frontend | Passed in isolated Temp snapshot using pnpm 12.8.1 | `pnpm install --offline --frozen-lockfile` reused all 95 lockfile packages with zero downloads from the host's existing pnpm store; `pnpm check`: zero errors/warnings; `pnpm build`: successful static build. Project CI pins pnpm 11; the host store is not included in the frozen source delivery, so recipient-side offline dependency reconstruction remains open. |
+| Offline Windows Rust application rebuild | Passed twice locally from the preserved application and Rust dependency source archives | Latest `cargo build --locked --offline --release --manifest-path src-tauri/Cargo.toml` completed in 24m 21s with isolated `CARGO_HOME` and target directory, linking against the frozen candidate `libmpv-2.dll`/`mpv.lib`. One pre-existing `BUILDING_MAIN` dead-code warning remains. All 834 application archive files and all 37,789 Rust dependency archive files were checked against the build inputs; one generated Tauri schema JSON differed in bytes but was semantically equal. Latest output: 32,436,224 bytes, SHA-256 `d726e9757ad95b5c7e438fdece13c305fd5c33eb386861e91499ee277dbdd945`. This verifies offline Cargo builds, not installer reproduction or bit-for-bit executable reproducibility. |
+| Application and installer build | Passed locally | Isolated MSVC release build completed; MSI and NSIS generated. One pre-existing unused-static warning in `main_window.rs`; no source change was made to suppress it. |
+| Extracted installer payloads | Passed for both formats | Each installer preserves the same 75 exact DLL, notice and source files; latest recheck verified every extracted file against its recorded hash. MSI cabinet paths were reconstructed from actual File/Component/Directory tables opened read-only, not by executing the installer. |
+| MSI/NSIS install and uninstall on clean Windows runner | Passed | GitHub Actions run [39878029733](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39878029733) built isolated CI-only MSI/NSIS packages from the committed branch source with the exact candidate DLL hash. MSI registered under Program Files, payload hash matched, then uninstall removed registration/executable. NSIS installed to runner temp, payload hash matched, then uninstall removed executable. These are CI-built test packages, not the separately frozen local installers listed below; this does not verify GUI launch, audio or provider login. |
+| Portable validation tests | Passed | Latest run: 44 Python tests passed in 1.466s. They cover preparation, notices, imports, runtime fixture behavior, source checksums and installer payload mismatch rejection. These do not replace native runtime tests. |
+| Candidate DLL Windows runtime recheck | Passed listed checks | `runtime-local-v5`: PCM, MP3, AAC, Opus, Vorbis, FLAC, ALAC; HTTP headers, HLS, DASH, WASAPI lifecycle, HTTPS playback and expired-certificate rejection. DLL SHA-256 matched frozen candidate. This does not cover a clean VM install, authenticated providers or measured gapless playback. |
+| Extracted application startup | Partial | The NSIS-extracted executable starts and loads the isolated candidate DLL. Its actual main window is enumerated separately from the single-instance helper window. GUI rendering/provider interaction is not cleared: the accessibility tree exposed only regions, and the desktop-region screenshot was occluded by another application. |
+| YouTube account and playback | User-reported manual validation | In the Candidate test context, the user reported signing in with Google, playback, pause, seeking forward within a track, switching to the next track, mute and continued background playback after closing the window. The user subsequently confirmed that selecting Quit from the menu stopped the audio. No credentials were collected. Exact stream format and these manual interactions were not independently instrumented. |
+
+Latest local runtime report: `.libmpv/owned/run-39796468807/runtime-local-v5/runtime-report.json`, with per-test logs alongside it. The first two attempts failed because the test generator placed DASH segments outside the served directory. The fixture generator now runs from the intended segment directory; the candidate DLL was not changed to resolve that test-harness error.
+
+Reproduce with local FFmpeg available, from the repository root:
+
+```powershell
+python -m unittest discover -s scripts/windows/owned-libmpv -p 'test_*.py' -q
+python scripts/windows/owned-libmpv/validate_runtime.py --dll .libmpv/owned/run-39796468807/candidate/libmpv-2.dll --output .libmpv/owned/run-39796468807/runtime-local-new --wasapi --https
+```
+
+The output directory must be new. `--wasapi` plays a brief low-volume test tone. `--https` makes requests to the two public endpoints listed above. The FFmpeg executable only generates test inputs; its libraries are not loaded into or substituted for the candidate. The runtime checks require Windows and are not executed by the portable Python unit tests.
+
+## Linkage and licensing evidence
+
+The subsequent [license and source closure review](LIBMPV-LICENSE-CLOSURE.md) records expanded native/Rust notices, exact npm distributions, recovered root notices, Rust standard-library attribution and the matched Microsoft WebView2 static loader SDK. Those materials are separate from the frozen delivery snapshot. Remaining gates apply to distributing this Windows Candidate, not automatically to an artifact that does not contain it. This is not a Linux support/release clearance; repository notes describe Linux as inherited reference code, not a verified Omni release target.
+
+The final link map identifies 3,248 selected archive members: 2,395 from the isolated dependency prefix and 853 from toolchain/sysroot archives. Many sysroot members are Windows import stubs, not implementations of Windows DLLs. The extracted-member index is `.libmpv/owned/run-39796468807/linked-archive-members.json`.
+
+Among selected members are 91 from libstdc++, eight from libgcc, two from libgcc_eh, 44 from libmingwex, ten from libmingw32 and nine from libpthread. libatomic is listed as an input library but has no extracted archive members in this map; a LOAD line alone is not evidence of incorporated code. The static runtime selection removed the previous external `libgcc_s_seh-1.dll` import.
+
+The supplementary source review now maps all 63 linked `libmingw32.a`, `libmingwex.a` and `libpthread.a` members through the recovered commit's generated Makefiles to one exact source path each; all source hashes match the preserved candidates. Four earlier basename collisions are resolved, including `libmingwex` `misc.o` and `strtof.o` mapping to gdtoa/Lucent sources and `scalbn.o` to x86 assembly. No explicit Cephes/Moshier/Wine/LGPL marker occurs in those 63 mapped source files. This narrows the runtime notice question but does not map consumed headers or generated code, establish compile flags or clear the unresolved Cephes note in the runtime-wide notice.
+
+GCC reports crosstool-NG `1.29.0.7_b1a94f6`; the upstream commit resolves to `b1a94f65c5187d99037a4e2f57aefbdf995a9677`. This improves source provenance but is not a reproducibility attestation for the compiler binaries. Effective source/patch mapping remains incomplete; no runtime-exception failure is confirmed, so this remains a technical confidence note under the user-directed GPL-enabled proceed assumption.
+
+The supplementary toolchain sources now include the original GCC 16.2.0 release tar.xz, verified against crosstool-NG's SHA-256 `e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e`, its release-tag snapshot, the crosstool-NG source/patch set, BtbN's base/overlay recipes, the MinGW v14 base snapshot and the recovered exact MinGW overlay archive. They are stored separately from the frozen native source-input bundle. Preserving these sources does not claim the effective compiler binaries were rebuilt or reproduced independently. The link map also contains 101 GCC-family archive members (8 `libgcc`, 2 `libgcc_eh`, 91 `libstdc++`); those objects and the effective GCC/crosstool-NG patch application still lack exact source/exception mapping.
+
+The GCC 16.2.0 release-source archive was also searched by linked object basename. It yields 170 source candidates for the 101 runtime members, with 15 unresolved names and 27 ambiguous names; it is explicitly not an exact object map. Candidate paths and hashes are retained separately from the MinGW exact mapping. The archive-level report does not establish which GCC sources were selected by the effective patched build.
+
+Rust dependency vendoring succeeded with the original lockfile. A Windows-filtered `cargo metadata --frozen` check with an empty CARGO_HOME resolved 482 reachable application packages from the vendored source replacement alone. Every package has license metadata or a license-file reference, but declared licenses still need original-term review. The vendored set is a dependency-source superset and includes non-Windows/build-only packages.
+
+The 718 vendored package directories contain 37,066 files listed in Cargo checksum manifests; every listed file hash was verified. The completed source-delivery archive is `application-dependency-sources-verified.tar.gz`, SHA-256 `5d117ea67dacbd7847234181355e829b8cf95547de39f61e86509ce9bba028c2`. An earlier packaging attempt timed out without producing a verified delivery archive; only the named completed archive is accepted. A complete offline Cargo release build has now passed using that archive and the preserved application source. This is a successful local rebuild, not a bit-for-bit reproducibility claim.
+
+Frontend collection preserved original notices/metadata for 95 installed pnpm packages. Six packages lack a root license file. `is-reference` and `locate-character` are development tooling and absent from static output; Hugeicons is imported into the UI, declares MIT, and its licensor confirms MIT for the free package. Use the prepared distributor supplement as the working notice treatment for the three exact MIT-declared packages that lack full root notices; it preserves metadata without inventing upstream copyright facts.
+
+## Installer and delivery work
+
+Installer validation used a separate temporary working-tree source snapshot with product name `Ryotunes Omni Candidate` and identifier `dev.excentry.ryotune-omni.libmpv-candidate`. The snapshot includes application changes beyond the recipe commit; it must not be described as a clean build of the recipe commit alone. The inherited version `1.2.3` is not an Omni release version.
+
+Its test-only configuration bundles the frozen candidate DLL at the executable's root and preserves candidate notices, native source inputs and a preferred-form application source snapshot. The Rust dependency-source archive is preserved separately and has now been used for a successful offline Cargo rebuild. Neither that rebuild nor its executable retroactively changes the frozen installers or delivery manifest. No installed application is replaced, and the main working tree's Tauri resource configuration is unchanged by this experiment.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Ryotunes Omni Candidate_1.2.3_x64-setup.exe` | 107953498 | `01e3b1e5c6f58801b6428737e036a30bfabe5f63c272ce67126e6e2360301467` |
+| `Ryotunes Omni Candidate_1.2.3_x64_en-US.msi` | 115269632 | `b8d3ef9f31ae7c1bb23822537ef654027ef4a36afd41b1970dd88e4ef9e0cefa` |
+| `application-source.tar.gz` | 6327689 | `354ef49a4cf7c53376fa005f6dcedd7d05a88fbeec51004a386a78f5b1c3f3a3` |
+| `toolchain-source-inputs.tar.gz` | See local provenance | `20590a6f3036be2ae4fcdb44c54793bbf99493949b4ba56206e5f4c0a23fd406` |
+| `frontend-package-inputs.tar.gz` | See local provenance | `10a9fd408abd3d045c84e2146b298c1652ac21d5149b5b761887d9ce2e676ee2` |
+
+The two installers contain the application's preferred-form source snapshot and original native source-input bundle. The subsequently prepared Rust/toolchain/frontend supplements and frontend notice inventory are separate delivery materials, not retroactively claimed to be inside those installers. The frontend package archive preserves 95 installed npm package distributions and lockfile inputs; it is not a ready-to-use offline pnpm store. The later static build used the development host's pnpm store, not a store reconstructed from this archive, and does not prove complete upstream source/notice clearance.
+
+Integrity recheck passed: all 340 files in `delivery/SHA256SUMS.txt`, all installer
+artifact hashes in `installer-artifacts.json`, and all 75 extracted payload files
+for each MSI/NSIS installer match their recorded hashes.
+
+The extracted Candidate application was started without executing either installer or copying account data. Its loaded `libmpv-2.dll` path was verified inside the isolated NSIS payload. Process startup and window enumeration are evidence of loading only, not a claim of successful authenticated playback or correct visible rendering. The Candidate process is left available for user-directed provider testing; the regular application was not replaced or terminated.
+
+The user subsequently reported the YouTube interaction recorded above, clarified that advance covered both seeking forward and switching tracks, and confirmed that explicit menu Quit stopped the audio. Window close and Quit therefore have distinct user-reported outcomes: background playback continues after window close and stops after Quit. Audio stopping alone does not prove that every application process terminated. This is human-reported evidence, separate from the limited automated GUI observation. This update is recorded only in the repository validation document; the previously hashed delivery snapshot remains unchanged and does not yet include this later report.
+
+## Remaining product validation and release packaging
+
+- GUI launch, playback and provider login from an installed package on a physical test profile remain unverified. CI verified MSI/NSIS installation, candidate DLL payload and uninstall on an ephemeral Windows runner, but did not launch the installed app or test audio.
+- Measured gapless continuity if claimed. Audible FxSound/WASAPI output is now confirmed by the user at internal volume 80%.
+- Broader provider-specific playback with authorized accounts and representative streams. One YouTube session is now user-reported; other providers, exact stream formats and failure/recovery paths remain unverified. Local HLS/DASH and a public HTTPS file do not validate every signed URL, provider header, authentication, cipher or transport path used by the application.
+- License/source review: **READY TO PROCEED** on the user-directed GPL-enabled assumption; no license violation or GPL/LGPL incompatibility was confirmed. Both frozen test installers contain 75 verified payload files, including the candidate DLL, 72 license/notice files, native source inputs and application source. Rust dependency, toolchain and frontend source/notice supplements are preserved separately for release assembly. GCC object/header mapping is an assurance note, not a confirmed violation or blocker. This status is not legal certification or public-release approval.
+
+No release, merge, active-DLL replacement, signing, public source upload or upstream contact is authorized or performed by this validation record. Passing the listed checks does not close the remaining gates automatically.

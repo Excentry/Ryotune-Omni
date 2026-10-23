@@ -21,6 +21,7 @@ rustypipe_reports/
 
 # Platform build artifacts
 /src-tauri/libmpv-2.dll
+/src-tauri/licenses/mpv/LICENSE.GPL
 /.libmpv/
 
 # Optional Last.fm build credentials

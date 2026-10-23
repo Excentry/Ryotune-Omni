@@ -6,7 +6,7 @@
 	import { UserCircleIcon, Logout01Icon, ArrowDown01Icon } from '@hugeicons/core-free-icons';
 	import { Button } from '$lib/components/ui/button';
 	import * as api from '$lib/api';
-	import { auth, openChannelPicker } from '$lib/player.svelte';
+	import { auth, openChannelPicker, startGoogleLogin } from '$lib/player.svelte';
 	import { thumb } from '$lib/thumb';
 	import { t } from '$lib/i18n.svelte';
 	import { anchorMenu, fitMenu, NO_ANCHOR, toBody } from '$lib/menu';
@@ -28,7 +28,7 @@
 	}
 
 	function signInGoogle() {
-		api.loginWebview(); // native sign-in window takes over; result arrives via auth-changed
+		startGoogleLogin();
 		menuOpen = false;
 	}
 

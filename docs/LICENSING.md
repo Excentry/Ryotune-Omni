@@ -29,7 +29,7 @@ Use this checklist when preparing a source or binary release:
 - Where GPLv3's User Product provisions apply, provide required Installation Information so recipients can install and run modified versions.
 - Preserve required legal notices in interfaces and distributions, and satisfy each bundled dependency's own license requirements.
 
-No license files were changed for this documentation.
+Upstream license texts must remain unmodified. `scripts/windows/collect-libmpv-sources.ps1` prepares mpv and FFmpeg notices from hash-verified source archives; the Windows bundle installs these notices and the project GPLv3 text as files under `licenses/`. See the [source and notice audit](windows/LIBMPV-SOURCE-AUDIT.md) for the exact available files and unresolved gaps. Installer license display alone is not the complete installed notice package.
 
 ## Third-party components
 
@@ -41,11 +41,13 @@ The initial review identified these distinct licensing considerations; this is *
 | Spotify code adapted from Sonora | GPL-3.0-or-later, with provenance above and in the crate's own documentation. |
 | Pinned librespot source revision | MIT; its license retains Paul Lietar's copyright and notice requirements. The actual source revision is pinned in `Cargo.toml` / `Cargo.lock`. |
 | `libmpv2` 4.1.0 and `libmpv2-sys` 4.0.1 | Registry metadata declares LGPL-2.1 for these Rust bindings; do not confuse the wrapper's license with the native engine's. |
-| Native mpv/libmpv | The [mpv copyright file](https://github.com/mpv-player/mpv/blob/master/Copyright) describes default GPL-2.0-or-later and an LGPL configuration excluding GPL-only files. Review the exact build and linked libraries. |
+| Native mpv/libmpv | Windows distribution target is mpv upstream's GPL x64 libmpv build `v0.41.0-1274-ga43ab319f` (asset SHA-256 `7f63ce43997b0c0d3d16465162200a4cdafcc21f73a122ba3a75b55032c64b9f`; DLL SHA-256 `5816ca7aeab4d07774f3b26c465ee6691c41660ba7288381949413c9844bcdf7`). `scripts/windows/prepare-libmpv.ps1` downloads or accepts the archive and verifies archive, DLL and import-library hashes before preparing Tauri resources. The Windows bundle declares GPL-3.0-or-later and includes the project GPLv3 text, upstream GPLv2 license text and an mpv provenance notice. Upstream release metadata declares this combined build GPLv3, compatible with the project. `scripts/windows/collect-libmpv-sources.ps1` collects pinned mpv and FFmpeg source archives; the [source audit](windows/LIBMPV-SOURCE-AUDIT.md) records missing static dependency sources and notices. This partial collection is not complete corresponding source; do not publish until the source bundle and transitive license inventory are complete and reviewed. Stable mpv `v0.41.0` has Windows player executables but no libmpv DLL asset. |
 | FFmpeg | [Licensing depends on build configuration and enabled components](https://www.ffmpeg.org/legal.html); a bundled binary needs its own source/notice and compatibility review. |
 | yt-dlp | Source is under the Unlicense, but [bundled release executables can have additional licensing obligations](https://github.com/yt-dlp/yt-dlp#licensing), including GPLv3+ code. Review the artifact, not just the source repository license. |
 
 Before shipping, inventory the resolved Rust/frontend dependencies, native codecs/libraries, Qt/Quickshell if retained, fonts, icons and skins. Verify license compatibility, required notices and source/relinking obligations for the chosen binaries and distribution channel. No blanket legal guarantee is made for Windows installers or Android packages.
+
+The separate [owned libmpv build candidate](windows/LIBMPV-OWNED-BUILD.md) fixes a smaller source closure and preserves its inputs before compilation. It does not yet replace the selected upstream DLL or approve redistribution. Its manual workflow must pass native and Windows checks, its notices and source package must be reviewed, and a durable corresponding-source delivery method must be arranged before promotion or publication.
 
 ## Trademarks and third-party services
 
