@@ -8,6 +8,7 @@
 //! Google's short-lived `__Secure-*SIDTS` cookies rotate and a pasted cookie eventually stops
 //! authenticating.
 
+use std::future::Future;
 use std::time::Duration;
 
 use tauri::webview::cookie::Cookie;
@@ -33,6 +34,12 @@ enum LoginEvent {
     BuildFailed(String),
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum CookieReadError {
+    Failed,
+    TimedOut,
+}
+
 /// The host's [`LoginFlow`]: one visible Google sign-in window per call.
 pub struct TauriLogin {
     pub app: AppHandle,
@@ -42,6 +49,7 @@ pub struct TauriLogin {
 impl LoginFlow for TauriLogin {
     async fn sign_in(&self) -> Result<LoginResult, LoginError> {
         let app = self.app.clone();
+        let deadline = tokio::time::Instant::now() + LOGIN_TIMEOUT;
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<LoginEvent>();
         let build_tx = tx.clone();
 
@@ -79,7 +87,6 @@ impl LoginFlow for TauriLogin {
             return Err(LoginError::Failed("Couldn't open the sign-in window".into()));
         }
 
-        let deadline = tokio::time::Instant::now() + LOGIN_TIMEOUT;
         loop {
             let ev = match recv_login_event(&mut rx, deadline).await {
                 Ok(Some(ev)) => ev,
@@ -98,12 +105,42 @@ impl LoginFlow for TauriLogin {
                     // The redirect that lands us here sets the youtube cookies; they may appear a
                     // beat after the page finishes, so poll briefly.
                     for _ in 0..6 {
-                        let cookies = read_login_cookies(&app).await;
+                        let cookies = match read_login_cookies_until(
+                            deadline,
+                            read_login_cookies(&app),
+                        )
+                        .await
+                        {
+                            Ok(cookies) => cookies,
+                            Err(CookieReadError::Failed) => {
+                                close_login(&app);
+                                return Err(LoginError::Failed(
+                                    "Couldn't read sign-in cookies. Please try again.".into(),
+                                ));
+                            }
+                            Err(CookieReadError::TimedOut) => {
+                                close_login(&app);
+                                return Err(LoginError::Failed(
+                                    "Sign-in timed out. Please try again.".into(),
+                                ));
+                            }
+                        };
                         if innertube::cookie_sapisid(&cookie_header(&cookies)).is_some() {
                             close_login(&app);
                             return Ok(LoginResult { cookies, authuser: 0 });
                         }
-                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        if tokio::time::timeout_at(
+                            deadline,
+                            tokio::time::sleep(Duration::from_millis(500)),
+                        )
+                        .await
+                        .is_err()
+                        {
+                            close_login(&app);
+                            return Err(LoginError::Failed(
+                                "Sign-in timed out. Please try again.".into(),
+                            ));
+                        }
                     }
                     // Landed on music.youtube.com but not authenticated yet — keep watching.
                 }
@@ -122,13 +159,26 @@ async fn recv_login_event(
     tokio::time::timeout_at(deadline, rx.recv()).await.map_err(|_| ())
 }
 
+async fn read_login_cookies_until<F>(
+    deadline: tokio::time::Instant,
+    read: F,
+) -> Result<Vec<(String, String)>, CookieReadError>
+where
+    F: Future<Output = Result<Vec<(String, String)>, ()>>,
+{
+    tokio::time::timeout_at(deadline, read)
+        .await
+        .map_err(|_| CookieReadError::TimedOut)?
+        .map_err(|_| CookieReadError::Failed)
+}
+
 /// Read the youtube-domain cookies from the login window as `name=value` pairs. Reads the platform
 /// cookie store (HttpOnly + secure included), matching what a browser sends to music.youtube.com.
 ///
 /// Hops to the main thread: both backends drive their platform event loop while they wait for the
 /// store (`gtk::main_iteration` on WebKitGTK, `NSRunLoop::mainRunLoop` on WKWebView), so they are
 /// written to be called from the thread that owns it.
-async fn read_login_cookies(app: &AppHandle) -> Vec<(String, String)> {
+async fn read_login_cookies(app: &AppHandle) -> Result<Vec<(String, String)>, ()> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let app2 = app.clone();
     if app
@@ -137,15 +187,15 @@ async fn read_login_cookies(app: &AppHandle) -> Vec<(String, String)> {
         })
         .is_err()
     {
-        return Vec::new();
+        return Err(());
     }
-    rx.await.unwrap_or_default()
+    rx.await.map_err(|_| ())?
 }
 
-fn youtube_cookies(app: &AppHandle) -> Vec<(String, String)> {
-    let Some(wv) = app.get_webview_window(LOGIN_LABEL) else { return Vec::new() };
-    let Ok(cookies) = wv.cookies() else { return Vec::new() };
-    youtube_cookie_pairs(cookies)
+fn youtube_cookies(app: &AppHandle) -> Result<Vec<(String, String)>, ()> {
+    let wv = app.get_webview_window(LOGIN_LABEL).ok_or(())?;
+    let cookies = wv.cookies().map_err(|_| ())?;
+    Ok(youtube_cookie_pairs(cookies))
 }
 
 /// Domain-match by hand rather than with `cookies_for_url`: WKWebView's implementation compares the
@@ -237,5 +287,33 @@ mod tests {
         assert!(tx.send(LoginEvent::Landed).is_ok());
         let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
         assert!(matches!(recv_login_event(&mut rx, deadline).await, Ok(Some(LoginEvent::Landed))));
+    }
+
+    #[tokio::test]
+    async fn cookie_read_completes_before_deadline() {
+        let cookies = vec![("SAPISID".into(), "fixture".into())];
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+        assert_eq!(
+            read_login_cookies_until(deadline, async { Ok(cookies.clone()) }).await,
+            Ok(cookies)
+        );
+    }
+
+    #[tokio::test]
+    async fn cookie_read_failure_is_recoverable() {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+        assert_eq!(
+            read_login_cookies_until(deadline, async { Err(()) }).await,
+            Err(CookieReadError::Failed)
+        );
+    }
+
+    #[tokio::test]
+    async fn stalled_cookie_read_obeys_login_deadline() {
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(10);
+        assert_eq!(
+            read_login_cookies_until(deadline, std::future::pending()).await,
+            Err(CookieReadError::TimedOut)
+        );
     }
 }
