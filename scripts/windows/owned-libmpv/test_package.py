@@ -1,3 +1,4 @@
+import hashlib
 import json
 import shutil
 import tempfile
@@ -36,6 +37,7 @@ class CandidatePackagingTests(unittest.TestCase):
         self.assertEqual((self.root / "candidate/licenses/freetype/docs/FTL.TXT").read_bytes(), b"Example notice\r\n")
         metadata = json.loads((self.root / "candidate/candidate.json").read_text())
         self.assertEqual(metadata["state"], "candidate-not-approved-for-distribution")
+        self.assertEqual(metadata["source_archive_sha256"], hashlib.sha256((self.root / "candidate/source-inputs.tar.gz").read_bytes()).hexdigest())
 
     def test_candidate_tampering_is_rejected(self):
         package(self.root)
