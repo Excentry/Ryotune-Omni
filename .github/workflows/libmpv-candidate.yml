@@ -33,11 +33,16 @@ jobs:
       - name: Preserve verified sources before building
         run: python scripts/windows/owned-libmpv/prepare.py --output "$RUNNER_TEMP/libmpv-input" --cache "$RUNNER_TEMP/libmpv-cache"
 
+      - name: Record source archive checksum
+        run: sha256sum "$RUNNER_TEMP/libmpv-input/source-inputs.tar.gz" > "$RUNNER_TEMP/libmpv-input/source-inputs.tar.gz.sha256"
+
       - name: Retain source inputs independently of build success
         uses: actions/upload-artifact@v4
         with:
           name: libmpv-source-inputs
-          path: ${{ runner.temp }}/libmpv-input/source-inputs.tar.gz
+          path: |
+            ${{ runner.temp }}/libmpv-input/source-inputs.tar.gz
+            ${{ runner.temp }}/libmpv-input/source-inputs.tar.gz.sha256
           compression-level: 0
           retention-days: 90
           if-no-files-found: error
@@ -97,8 +102,22 @@ jobs:
           name: libmpv-windows-x64-candidate
           path: candidate
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: libmpv-source-inputs
+          path: source-inputs
+
       - name: Verify candidate and exercise libmpv directly
         run: python scripts/windows/owned-libmpv/smoke.py --dll candidate/libmpv-2.dll
+
+      - name: Verify candidate source archive pairing
+        shell: pwsh
+        run: |
+          $sourceChecksum = (Get-Content source-inputs/source-inputs.tar.gz.sha256 -Raw).Trim().Split(' ')[0]
+          $candidateChecksum = (Get-FileHash candidate/source-inputs.tar.gz -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($candidateChecksum -ne $sourceChecksum) {
+            throw "Candidate source archive does not match same-run source artifact: expected $sourceChecksum, got $candidateChecksum"
+          }
 
       - uses: dtolnay/rust-toolchain@stable
 

@@ -1,4 +1,5 @@
 import hashlib
+import json
 import shutil
 import tempfile
 import unittest
@@ -15,7 +16,10 @@ class InstallerPayloadTests(unittest.TestCase):
         for name in names:
             path = candidate / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(name.encode())
+            if name == "candidate.json":
+                path.write_text(json.dumps({"source_archive": "source-inputs.tar.gz", "source_archive_sha256": hashlib.sha256((candidate / "source-inputs.tar.gz").read_bytes()).hexdigest()}))
+            else:
+                path.write_bytes(name.encode())
         sums = [f"{hashlib.sha256((candidate / name).read_bytes()).hexdigest()}  {name}" for name in names]
         (candidate / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n")
         application = root / "application-source.tar.gz"

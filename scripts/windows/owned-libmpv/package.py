@@ -87,9 +87,12 @@ def package(output):
     for source in output.glob("*-options.json"):
         shutil.copyfile(source, candidate / source.name)
     shutil.copyfile(prepared / "recipe/sources.lock.json", candidate / "sources.lock.json")
+    with (candidate / "source-inputs.tar.gz").open("rb") as source_archive:
+        source_archive_sha256 = hashlib.file_digest(source_archive, "sha256").hexdigest()
     metadata = {
         "state": "candidate-not-approved-for-distribution",
         "source_archive": "source-inputs.tar.gz",
+        "source_archive_sha256": source_archive_sha256,
         "notice_files": records,
         "license_review": "REVIEW.md",
         "toolchain_notices": "notice-inputs.lock.json",
