@@ -1,0 +1,11 @@
+{
+  "label_owners": {
+    "platform: windows": ["IsaVonxz-type"],
+    "platform: linux-reference": ["Excentry"],
+    "platform: android": ["Excentry", "IsaVonxz-type"]
+  },
+  "opener_fallback": {
+    "excentry": ["IsaVonxz-type"],
+    "isavonxz-type": ["Excentry"]
+  }
+}
