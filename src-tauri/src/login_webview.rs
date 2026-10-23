@@ -21,16 +21,37 @@ use ryotunes_core::session::{allowed_login_navigation, LOGIN_URL};
 const LOGIN_LABEL: &str = "login";
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(300);
 
-/// WebKitGTK is a WebKit engine, so a macOS Safari UA is the most internally-consistent spoof and
-/// the least likely to trip Google's "this browser may not be secure" block. **Tune here** if
-/// Google rejects it — this is the fragile part (authentication flow Path A).
+/// Keep the WebKit-compatible UA for WebKit hosts. Windows WebView2 must use its native default UA.
+#[cfg(not(windows))]
 const LOGIN_UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 \
                         (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15";
 
-/// What the login window reports back to the async sign-in: the page reached music.youtube.com, or
-/// the window could not be built.
+fn login_user_agent_override() -> Option<&'static str> {
+    #[cfg(windows)]
+    {
+        None
+    }
+    #[cfg(not(windows))]
+    {
+        Some(LOGIN_UA)
+    }
+}
+
+fn guard_login_navigation(
+    url: &tauri::Url,
+    navigation_tx: &tokio::sync::mpsc::UnboundedSender<LoginEvent>,
+) -> bool {
+    let allowed = allowed_login_navigation(url);
+    if !allowed {
+        let _ = navigation_tx.send(LoginEvent::NavigationRejected);
+    }
+    allowed
+}
+
+/// What the login window reports back to the async sign-in.
 enum LoginEvent {
     Landed,
+    NavigationRejected,
     BuildFailed(String),
 }
 
@@ -64,11 +85,16 @@ impl LoginFlow for TauriLogin {
                 let _ = build_tx.send(LoginEvent::BuildFailed("bad login url".into()));
                 return;
             };
-            let res = WebviewWindowBuilder::new(&app2, LOGIN_LABEL, WebviewUrl::External(url))
-                .title("Sign in to YouTube Music")
-                .inner_size(480.0, 720.0)
-                .user_agent(LOGIN_UA)
-                .on_navigation(allowed_login_navigation)
+            let mut builder =
+                WebviewWindowBuilder::new(&app2, LOGIN_LABEL, WebviewUrl::External(url))
+                    .title("Sign in to YouTube Music")
+                    .inner_size(480.0, 720.0);
+            if let Some(user_agent) = login_user_agent_override() {
+                builder = builder.user_agent(user_agent);
+            }
+            let navigation_tx = tx.clone();
+            let res = builder
+                .on_navigation(move |url| guard_login_navigation(url, &navigation_tx))
                 .on_page_load(move |_w, payload| {
                     if matches!(payload.event(), PageLoadEvent::Finished)
                         && payload.url().host_str() == Some("music.youtube.com")
@@ -100,6 +126,12 @@ impl LoginFlow for TauriLogin {
                 LoginEvent::BuildFailed(e) => {
                     close_login(&app);
                     return Err(LoginError::Failed(e));
+                }
+                LoginEvent::NavigationRejected => {
+                    close_login(&app);
+                    return Err(LoginError::Failed(
+                        "Sign-in redirected outside Google or YouTube. Please try again.".into(),
+                    ));
                 }
                 LoginEvent::Landed => {
                     // The redirect that lands us here sets the youtube cookies; they may appear a
@@ -236,6 +268,23 @@ fn close_login(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn login_user_agent_override_matches_webview_platform() {
+        #[cfg(windows)]
+        assert_eq!(login_user_agent_override(), None);
+        #[cfg(not(windows))]
+        assert_eq!(login_user_agent_override(), Some(LOGIN_UA));
+    }
+
+    #[test]
+    fn blocked_login_navigation_notifies_sign_in_flow() {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let url = tauri::Url::parse("https://example.com/login").unwrap();
+
+        assert!(!guard_login_navigation(&url, &tx));
+        assert!(matches!(rx.try_recv(), Ok(LoginEvent::NavigationRejected)));
+    }
 
     fn cookie(s: &str) -> Cookie<'static> {
         Cookie::parse(s.to_string()).unwrap()
