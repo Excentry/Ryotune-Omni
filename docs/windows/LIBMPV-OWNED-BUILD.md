@@ -6,6 +6,8 @@ The repository now has a separate candidate recipe under `scripts/windows/owned-
 
 The selected upstream DLL, its downloader and the application resource mapping are unchanged by this candidate recipe. Do not promote a candidate by overwriting the active DLL or reusing its existing hashes/notices. Cross-compilation passed in run 39792004346, but Windows loading failed; Windows/MSVC validation and distribution approval remain blocked. Preparing scripts or linking a DLL is not release approval.
 
+The subsequent candidate run [39898187400](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39898187400) passed the pinned build and Windows smoke/MSVC regression. It produced the same DLL hash as the frozen validation candidate and verified its own source bundle through the candidate checksum manifest. The independent same-run source artifact differed only in generated `preparation.json` metadata (Python `3.12.15` versus `3.14.4`); the 15 source archives and recipe matched. The follow-up was verified in run [39901704769](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39901704769): the same-run source archive and candidate-embedded source archive matched byte-for-byte, and the Windows candidate smoke/MSVC regression passed. This evidence does not promote the candidate or clear the compiler-source assurance limitation.
+
 Local checks completed on 2026-10-22: 11 Python unit tests passed; all 15 downloaded source archives matched their locked checksums; full offline extraction and source-package preparation passed; `bash -n` passed; workflow YAML parsing verified the manual trigger, read-only permissions and build-to-Windows dependency; `git diff --check` passed. Existing WSL Bash/PyYAML were used only for syntax checks, not native compilation. Docker's Linux engine was unavailable and was not started.
 
 The preserved local package `.libmpv/owned/prepared-final/source-inputs.tar.gz` contains all 15 original source archives and the recipe: 78,892,342 bytes, SHA-256 `9a1dc7d8e032bff26ccf880e85470bf1d9f24f4b09c01cad5ef726113b3d579d`. This package hash identifies this local preparation, not a bit-for-bit reproducibility guarantee for future tarballs. The active application DLL still has SHA-256 `5816ca7aeab4d07774f3b26c465ee6691c41660ba7288381949413c9844bcdf7`.
@@ -62,6 +64,7 @@ The user authorized committing/pushing only the new candidate implementation to 
 - A separate `libmpv-2.dll`, GNU import archive named `mpv.lib`, public headers and PE imports.
 - Original notice/license files, including FreeType's FTL text and acknowledgement; the full originals remain in the source inputs.
 - Candidate hashes and metadata explicitly marking it not approved for distribution.
+- The workflow records and checks exact SHA-256 identity between the independently retained source artifact and the source bundle embedded in the candidate; run 39901704769 passed this check.
 - Windows checksum/ABI smoke using the actual DLL and a generated WAV: load readiness, audio filter acceptance, seek request and play/pause state.
 - The existing real-libmpv player regression compiled with MSVC against the candidate import library. Failure or timeout is not ignored.
 

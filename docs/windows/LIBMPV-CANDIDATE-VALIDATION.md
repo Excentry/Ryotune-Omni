@@ -10,6 +10,16 @@
 
 The downloaded candidate directory is immutable evidence. Supplementary local reports, source-delivery materials and installer experiments live beside it, not inside its checksum manifest. This is a validation candidate, not an approved Omni release.
 
+## Latest same-run source and candidate evidence
+
+CI run [39898187400](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39898187400), head `7990133c692690993f5306a2056b6c1fea3828cd`, passed both the network-disabled build and Windows candidate smoke/MSVC regression. The candidate DLL SHA-256 remained `a63580d610114bd039f79c72e0bd99b57c3276df77d98a0774830035ea5210c1`; the candidate's `SHA256SUMS.txt` verified all 98 listed files, including its embedded source archive, lockfiles, import library, license files and build evidence. The candidate embeds `source-inputs.tar.gz` with SHA-256 `0980e8686cf4cf04d290e498e330ea95b4fbc13bb22e11837cbbcb9760a1a35f`.
+
+The same run independently uploaded `libmpv-source-inputs`; its archive SHA-256 is `6be01deef6a32d68e33fe6920842579c26d89e51f6c0e1f778c0c993aab50a90`. Both archives contain the same 51 regular-file paths and bytes except `preparation.json`, which records Python `3.12.15` in the pre-build artifact and `3.14.4` in the candidate's in-container preparation. All 15 locked source archives match their SHA-256 values, and all 35 recipe files match the merged source tree. This exposed the need to carry the pre-build archive byte-for-byte into the candidate.
+
+The follow-up is verified by CI run [39901704769](https://github.com/Excentry/Ryotunes-Omni/actions/runs/39901704769), which tested tree `d63378ba8eb3dd2e3b0c81b9355364ef845821dc`, identical to the W12 implementation in PR #23 before this evidence-only documentation update. Both build and Windows jobs passed, including `Verify candidate source archive pairing`, native smoke and the MSVC player regression. The independent source artifact and candidate's embedded `source-inputs.tar.gz` are byte-identical with SHA-256 `9733a763eb022f9e0a2ab7925b75ba57399f3313fabc1b14939f216e1adc0f47`; the candidate DLL remains `a63580d610114bd039f79c72e0bd99b57c3276df77d98a0774830035ea5210c1`. The candidate checksum manifest also verifies all packaged files. These temporary Actions artifacts expire on `2027-01-21`; the verified pairing is engineering evidence, not a durable distribution channel or release approval.
+
+The two run artifacts expire on `2027-01-21`; they are evidence, not a durable distribution channel. For any future Windows release, the proposed durable location is a companion corresponding-source asset attached to the same versioned GitHub Release as its installer, with a checksum manifest and a direct link from the release notes. The companion must include the exact candidate `source-inputs.tar.gz`, original notices and review, toolchain source/notices and applicable corresponding application, Rust dependency and frontend source materials/build instructions. This is a packaging plan only: no release asset or public source has been uploaded or authorized.
+
 ## Checks completed
 
 | Check | Result | Scope |

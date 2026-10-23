@@ -1,6 +1,7 @@
 import argparse
 import ctypes
 import hashlib
+import json
 import locale
 import math
 import os
@@ -31,6 +32,13 @@ def verify_checksums(directory):
     actual_files = {path.relative_to(directory).as_posix() for path in directory.rglob("*") if path.is_file() and path.name != "SHA256SUMS.txt"}
     if not required.issubset(listed) or listed != actual_files:
         raise ValueError("Candidate checksum manifest is incomplete")
+    metadata = json.loads((directory / "candidate.json").read_text(encoding="utf-8"))
+    if metadata.get("source_archive") != "source-inputs.tar.gz":
+        raise ValueError("Candidate source archive path is invalid")
+    with (directory / "source-inputs.tar.gz").open("rb") as stream:
+        source_hash = hashlib.file_digest(stream, "sha256").hexdigest()
+    if metadata.get("source_archive_sha256") != source_hash:
+        raise ValueError("Candidate source archive hash does not match candidate metadata")
 
 
 def smoke(dll):
