@@ -49,6 +49,17 @@ body:
       placeholder: "Windows 11 24H2, WebView2 version; Android 15, Pixel 8"
     validations:
       required: true
+  - type: dropdown
+    id: windows_environment
+    attributes:
+      label: Is Windows access required to reproduce or verify this bug?
+      description: Choose Yes only if a Windows build, runtime, or device is necessary; otherwise choose No or Unsure.
+      options:
+        - No — logs, source, or another environment are enough to investigate
+        - Yes — Windows build, runtime, or device is required
+        - Unsure — needs triage
+    validations:
+      required: true
   - type: textarea
     id: diagnostics
     attributes:

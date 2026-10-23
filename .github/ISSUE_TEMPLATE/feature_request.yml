@@ -22,6 +22,17 @@ body:
         - Other
     validations:
       required: true
+  - type: dropdown
+    id: windows_environment
+    attributes:
+      label: Is Windows access required to complete or validate this work?
+      description: Choose Yes only when a Windows build, runtime, or device is necessary. A Windows target alone does not mean Windows access is required.
+      options:
+        - No — code, documentation, or audit can proceed without Windows
+        - Yes — Windows build, runtime, or device is required
+        - Unsure — needs triage
+    validations:
+      required: true
   - type: textarea
     id: idea
     attributes:
