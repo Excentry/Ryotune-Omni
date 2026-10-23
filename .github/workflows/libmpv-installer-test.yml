@@ -1,0 +1,99 @@
+name: Windows candidate installer test
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: GitHub Actions run containing the validated libmpv candidate artifact
+        required: true
+        default: '39796468807'
+        type: string
+  push:
+    branches:
+      - test/libmpv-owned-build
+    paths:
+      - .github/workflows/libmpv-installer-test.yml
+      - scripts/windows/owned-libmpv/test_ci_installers.ps1
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: windows-candidate-installer-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installers:
+    runs-on: windows-2025
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: libmpv-windows-x64-candidate
+          path: candidate
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.candidate_run_id || '39796468807' }}
+          github-token: ${{ github.token }}
+
+      - name: Verify and install candidate build inputs
+        shell: pwsh
+        run: |
+          python scripts/windows/owned-libmpv/smoke.py --dll candidate/libmpv-2.dll
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash candidate/libmpv-2.dll -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne 'a63580d610114bd039f79c72e0bd99b57c3276df77d98a0774830035ea5210c1') {
+            throw "Unexpected candidate DLL hash: $hash"
+          }
+          if (-not (Test-Path candidate/mpv.lib)) { throw 'Candidate MSVC import library missing' }
+          Copy-Item candidate/libmpv-2.dll src-tauri/libmpv-2.dll -Force
+          $env:LIB = "$(Resolve-Path candidate);$env:LIB"
+          "LIB=$env:LIB" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Frontend dependencies
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version 2.12.4 --locked
+
+      - name: Build isolated MSI and NSIS installers
+        shell: pwsh
+        run: |
+          $config = Join-Path $env:RUNNER_TEMP 'tauri-ci-candidate.json'
+          @{
+            productName = 'Ryotunes Omni CI Candidate'
+            identifier = 'dev.excentry.ryotune-omni.libmpv-ci'
+          } | ConvertTo-Json | Set-Content -LiteralPath $config -Encoding utf8
+          cargo tauri build --config $config --bundles msi,nsis -- --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $msi = @(Get-ChildItem target/release/bundle/msi -Filter '*.msi' -File -Recurse)
+          $nsis = @(Get-ChildItem target/release/bundle/nsis -Filter '*-setup.exe' -File -Recurse)
+          if ($msi.Count -ne 1) { throw "Expected one MSI, found $($msi.Count)" }
+          if ($nsis.Count -ne 1) { throw "Expected one NSIS setup, found $($nsis.Count)" }
+          "MSI=$($msi[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "NSIS=$($nsis[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install and uninstall both packages
+        shell: pwsh
+        run: scripts/windows/owned-libmpv/test_ci_installers.ps1 -MsiPath $env:MSI -NsisPath $env:NSIS -ExpectedDllHash a63580d610114bd039f79c72e0bd99b57c3276df77d98a0774830035ea5210c1
