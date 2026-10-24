@@ -36,7 +36,8 @@ The canonical GitHub repository is `Excentry/Ryotunes-Omni`; `Ryotune-Omni` URLs
 | [INSTALL-ARCH.md](INSTALL-ARCH.md), [INSTALL-VOID.md](INSTALL-VOID.md) | Linux package status (no release) | English |
 | [assets/ryotune-omni-design.md](assets/ryotune-omni-design.md) | Logo and banner notes | English |
 | [../UPSTREAM.md](../UPSTREAM.md) | Provenance of the code | English |
-| [../SECURITY.md](../SECURITY.md) | Security and privacy model (Linux host only so far) | English |
+| [../SECURITY.md](../SECURITY.md) | Security and privacy model: Tauri/Windows host, with the inherited Linux host as reference | English |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Shared core and hosts: Windows (Tauri) and the inherited Linux daemon and client | English |
 
 ## Windows port
 
@@ -60,7 +61,6 @@ These describe the inherited Ryotunes client and daemon. They are reference mate
 
 | Document | Role |
 | --- | --- |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Daemon and client architecture |
 | [DESIGN.md](DESIGN.md) | Design language; kept as the default look, see [windows/W26-VISUAL-BASELINE.md](windows/W26-VISUAL-BASELINE.md) |
 | [SKINS.md](SKINS.md), [../skins/README.md](../skins/README.md) | Skin format and gallery |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Linux package troubleshooting |
