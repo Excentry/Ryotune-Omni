@@ -8,7 +8,7 @@ Ryotune-Omni targets Windows and Android; neither has a verified build or releas
 | --- | --- |
 | Work still to do on the Windows port: tasks, owners, acceptance, open decisions | [windows/ROADMAP.md](windows/ROADMAP.md) |
 | Verification evidence, results and findings already obtained | [windows/CHANGELOG.md](windows/CHANGELOG.md) |
-| Release notes of the inherited Ryotunes product (not the Windows port) | [../CHANGELOG.md](../CHANGELOG.md), [../RELEASE_NOTES.md](../RELEASE_NOTES.md) |
+| Release notes of the inherited Ryotunes product (not the Windows port) | [../CHANGELOG.md](../CHANGELOG.md), [upstream/RELEASE_NOTES.md](upstream/RELEASE_NOTES.md) |
 | Platform status and known limits | [COMPATIBILITY.md](COMPATIBILITY.md) |
 | Release and publication policy | [RELEASING.md](RELEASING.md) |
 
@@ -41,7 +41,7 @@ Working notes are in Spanish; the libmpv documents are in English.
 | [windows/W10-CARGO-WINDOWS-INVENTORY.md](windows/W10-CARGO-WINDOWS-INVENTORY.md) | Cargo dependency graph on Windows |
 | `windows/LIBMPV-*.md` | libmpv candidate: source audit, component review, license closure, owned build, validation |
 
-`../reports/` and `../research_notes/` hold Spanish notes on libmpv source recovery. They belong with the libmpv documents above.
+[windows/libmpv-research/](windows/libmpv-research/) holds Spanish research notes on libmpv source recovery.
 
 ## Inherited Linux and Ryotunes reference
 
