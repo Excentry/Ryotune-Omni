@@ -1,5 +1,7 @@
 # Security and privacy
 
+> **Scope.** This document describes the inherited Linux host (WebKitGTK). The Windows host (WebView2) has not had its own security review yet; it is tracked as W74 in the [Windows roadmap](docs/windows/ROADMAP.md).
+
 Ryotunes is a Tauri desktop application: the UI is rendered by the operating system WebView
 (WebKitGTK on Linux), while playback, account state, filesystem access and network integrations live
 in Rust. Treat both sides as part of the security boundary.
@@ -21,7 +23,7 @@ origins on affected platforms).
 ## WebView / IPC design
 
 - The normal `main` and `mini` surfaces load the bundled Ryotunes frontend, not a remote web app.
-- All 93 application commands are registered with Tauri's runtime authority through an explicit
+- All 97 application commands are registered with Tauri's runtime authority through an explicit
   `AppManifest` and one `allow-ui-commands` permission granted only to the `main` and `mini`
   surfaces. The remote Google login page and hidden cipher/PoToken JavaScript runtimes therefore
   cannot invoke Ryotunes application commands even though they exist inside the same process.

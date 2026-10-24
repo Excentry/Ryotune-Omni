@@ -1,5 +1,7 @@
 # Ryotunes architecture
 
+> **Inherited Linux reference.** Describes the inherited Ryotunes client and daemon and still uses the Ryotunes name. Parts are outdated: `src-tauri/` exists and is the host on non-Linux targets (see [DEVELOPMENT.md](DEVELOPMENT.md)). It is not Ryotune-Omni platform documentation; the Windows plan is in the [Windows roadmap](windows/ROADMAP.md).
+
 Ryotunes is split so that playback survives independently of the visible interface. This is especially important on Ryoku laptops, where keeping a WebKit view active for a song that is already playing wastes CPU, memory and power.
 
 ## Process model
