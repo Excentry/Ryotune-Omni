@@ -85,7 +85,7 @@ The alternate Tauri host embeds the Svelte frontend and calls the shared core th
 
 ### State, storage, and desktop integration
 
-The Ryotune Omni Linux daemon resolves data under `$XDG_DATA_HOME/dev.excentry.ryotune-omni` and audio cache under `$XDG_CACHE_HOME/dev.excentry.ryotune-omni/audio`, with home-directory defaults. Its application setup opens `ryotunes.sqlite`; download settings/history use `downloads.json`. The QML client separately stores UI preferences under `$XDG_CONFIG_HOME/ryotune-omni/client.json`. Tauri uses the same new identifier for its platform data/cache resolvers. The profile starts fresh; no existing Ryotunes data is copied.
+The Ryotune-Omni Linux daemon resolves data under `$XDG_DATA_HOME/dev.excentry.ryotune-omni` and audio cache under `$XDG_CACHE_HOME/dev.excentry.ryotune-omni/audio`, with home-directory defaults. Its application setup opens `ryotunes.sqlite`; download settings/history use `downloads.json`. The QML client separately stores UI preferences under `$XDG_CONFIG_HOME/ryotune-omni/client.json`. Tauri uses the same new identifier for its platform data/cache resolvers. The profile starts fresh; no existing Ryotunes data is copied.
 
 The normal daemon socket is `$XDG_RUNTIME_DIR/ryotune-omni/daemon.sock`, with its single-instance lock beside it. Spotify audio currently passes from librespot into libmpv through a Unix FIFO; `crates/spotify/src/stream.rs` explicitly rejects this transport on non-Unix platforms. Authentication data, cookies, settings, local library paths, artwork and provider caches also need a target-specific storage and privacy review. Existing XDG/HOME assumptions, Unix permissions, filesystem URLs and external-process behavior must not be copied unchanged to Windows or Android.
 
@@ -137,7 +137,7 @@ Ryotune-Omni uses its own release ledger, separate from Ryotunes. The inherited 
 - Documentation-only changes stay under `Unreleased`; they do not create tags or releases.
 - Create tags only through an explicitly reviewed Ryotune-Omni release. A tag must identify the exact source and artifacts for that release.
 
-Application manifests and active Arch metadata use Ryotune Omni identity. The self-updater checks this repository and will install only a package owned as `ryotune-omni`; it never updates upstream `ryotunes`. The release workflow validates synchronized versions and publishes nothing until a real, validated target is enabled. Do not enable a target until runtime support is validated.
+Application manifests and active Arch metadata use Ryotune-Omni identity. The self-updater checks this repository and will install only a package owned as `ryotune-omni`; it never updates upstream `ryotunes`. The release workflow validates synchronized versions and publishes nothing until a real, validated target is enabled. Do not enable a target until runtime support is validated.
 
 ### Windows and Android
 

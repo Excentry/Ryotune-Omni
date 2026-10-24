@@ -12,6 +12,17 @@ Ryotune-Omni targets Windows and Android; neither has a verified build or releas
 | Platform status and known limits | [COMPATIBILITY.md](COMPATIBILITY.md) |
 | Release and publication policy | [RELEASING.md](RELEASING.md) |
 
+## Naming
+
+| Form | Use |
+| --- | --- |
+| Ryotune-Omni | The project and repository, in prose. |
+| `ryotune-omni`, `dev.excentry.ryotune-omni` | Binaries, packages and the application identifier; always lowercase and literal. |
+| Ryotunes Omni | The product name shown in the application and in installer metadata; keep it where it is a literal string. |
+| Ryotunes | The inherited upstream project and its Linux client. |
+
+The canonical GitHub repository is `Excentry/Ryotunes-Omni`; `Ryotune-Omni` URLs currently redirect to it.
+
 ## Ryotune-Omni
 
 | Document | Role | Language |
